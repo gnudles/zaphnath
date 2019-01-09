@@ -35,7 +35,7 @@ int main()
 	zpn_decrypt(0x4,0x50,&ts,in,out);
 	for (i=0;i<16;++i)
 		printf("%02x ",in[i]);
-
+	printf("\nbye bye\n");
 	return 0;
 }
 
