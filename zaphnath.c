@@ -42,7 +42,8 @@ REV_ZAF_DIFFUSE_ROUND(C,D,B,6,0x69696969);\
 REV_ZAF_DIFFUSE_ROUND(C,B,A,11,0x78787878);\
 REV_ZAF_DIFFUSE_ROUND(D,A,B,15,0x5A5A5A5A);
 
-
+/* there are exactly 128 primitive roots of 257 */
+uint8_t prim_root[128]={3 , 5 , 6 , 7 , 10 , 12 , 14 , 19 , 20 , 24 , 27 , 28 , 33 , 37 , 38 , 39 , 40 , 41 , 43 , 45 , 47 , 48 , 51 , 53 , 54 , 55 , 56 , 63 , 65 , 66 , 69 , 71 , 74 , 75 , 76 , 77 , 78 , 80 , 82 , 83 , 85 , 86 , 87 , 90 , 91 , 93 , 94 , 96 , 97 , 101 , 102 , 103 , 105 , 106 , 107 , 108 , 109 , 110 , 112 , 115 , 119 , 125 , 126 , 127 , 130 , 131 , 132 , 138 , 142 , 145 , 147 , 148 , 149 , 150 , 151 , 152 , 154 , 155 , 156 , 160 , 161 , 163 , 164 , 166 , 167 , 170 , 171 , 172 , 174 , 175 , 177 , 179 , 180 , 181 , 182 , 183 , 186 , 188 , 191 , 192 , 194 , 201 , 202 , 203 , 204 , 206 , 209 , 210 , 212 , 214 , 216 , 217 , 218 , 219 , 220 , 224 , 229 , 230 , 233 , 237 , 238 , 243 , 245 , 247 , 250 , 251 , 252 , 254 };
 #define bjenkins_mix2(a,b,c) \
 { \
   a -= b; a -= c; a ^= (c>>13); \
@@ -120,6 +121,17 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct time_s
 		ts->final_xor[0] = ((uint64_t*)sponge)[0];
 		zpn_feed_sponge(sponge,sponge_len,0);
 		ts->final_xor[1] = ((uint64_t*)sponge)[0];
+		zpn_feed_sponge(sponge,sponge_len,0);
+		uint32_t prim = ((uint64_t*)sponge)[0];
+		uint32_t pv = prim & 0xff + 1;
+		prim = prim_root[(prim >> 8) & 0x7f];
+		for ( i = 0 ; i < 256 ; ++ i)
+		{
+		pv=(pv*prim)%257;
+		ts->lookup[0][i]=pv-1;
+		ts->lookup[1][pv-1]=i;
+		printf ("%d: %u\n",i,pv-1);
+		}
 		int sponge_counter=6;
 		uint64_t sponge_key=0;
 		for (i=0;i<cycles*16;++i)
@@ -143,6 +155,15 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct time_s
 		ts->final_xor[0] = 0x88a456246ef87d35;
 		ts->final_xor[1] = 0x762dfe7a0bc41768;
 
+		uint32_t prim =333;
+		uint32_t pv = prim & 0xff + 1;
+		prim = prim_root[(prim >> 8) & 0x7f];
+		for ( i = 0 ; i < 256 ; ++ i)
+		{
+		pv=(pv*prim)%257;
+		ts->lookup[0][i]=pv-1;
+		ts->lookup[1][pv-1]=i;
+		}
 		for (i=0; i < cycles*16; ++i)
 		{
 			ts->index[i/16][i%16]=i;
@@ -271,6 +292,8 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];
 	}
 	ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
+	for(int i=0; i<16; ++i)
+		out[i]=ts->lookup[i&1][out[i]];
 	((uint64_t*)out)[0]^=ts->final_xor[0];
 	((uint64_t*)out)[1]^=ts->final_xor[1];
 }
@@ -280,6 +303,8 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	uint32_t *out32=(uint32_t *)out;
 	((uint64_t*)out)[0]^=ts->final_xor[0];
 	((uint64_t*)out)[1]^=ts->final_xor[1];
+	for(int i=0; i<16; ++i)
+		out[i]=ts->lookup[~i&1][out[i]];
 	REV_ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
 
 	uint32_t i, b;
