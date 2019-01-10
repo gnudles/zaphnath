@@ -68,8 +68,7 @@ uint8_t prim_root[128]={3 , 5 , 6 , 7 , 10 , 12 , 14 , 19 , 20 , 24 , 27 , 28 , 
 }
 
 
-extern uint8_t zpn_lookups[1024][256];
-extern uint8_t rev_zpn_lookups[1024][256];
+extern uint8_t zpn_lookups[2][1024][256];
 
 uint32_t max_ui32(uint32_t a, uint32_t b)
 { if (a>b) return a; return b; }
@@ -123,14 +122,15 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct time_s
 		ts->final_xor[1] = ((uint64_t*)sponge)[0];
 		zpn_feed_sponge(sponge,sponge_len,0);
 		uint32_t prim = ((uint64_t*)sponge)[0];
-		uint32_t pv = prim & 0xff + 1;
-		prim = prim_root[(prim >> 8) & 0x7f];
+		uint32_t pv = prim & 0xff;
+		uint32_t zl = (prim>>8) & 0x7ff;
+		uint8_t *ll = zpn_lookups[zl>>10][zl&0x3ff];
+		prim = prim_root[(prim >> 19) & 0x7f];
 		for ( i = 0 ; i < 256 ; ++ i)
 		{
-		pv=(pv*prim)%257;
-		ts->lookup[0][i]=pv-1;
-		ts->lookup[1][pv-1]=i;
-		printf ("%d: %u\n",i,pv-1);
+			pv=((pv+1)*prim)%257 - 1;
+			ts->lookup[0][i]=ll[pv];
+			ts->lookup[1][ll[pv]]=i;
 		}
 		int sponge_counter=6;
 		uint64_t sponge_key=0;
@@ -149,20 +149,22 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct time_s
 		free(sponge);
 	}
 	else
-	{
+	{ // dummy values for testing purpose only.
 		ts->counter_mask[0] = 0x12345faa0987efab;
 		ts->counter_mask[1] = 0xabcd4567f123a5a5;
 		ts->final_xor[0] = 0x88a456246ef87d35;
 		ts->final_xor[1] = 0x762dfe7a0bc41768;
 
-		uint32_t prim =333;
-		uint32_t pv = prim & 0xff + 1;
-		prim = prim_root[(prim >> 8) & 0x7f];
+		uint32_t prim = 555578;
+		uint32_t pv = prim & 0xff;
+		uint32_t zl = (prim>>8) & 0x7ff;
+		uint8_t *ll = zpn_lookups[zl>>10][zl&0x3ff];
+		prim = prim_root[(prim >> 19) & 0x7f];
 		for ( i = 0 ; i < 256 ; ++ i)
 		{
-		pv=(pv*prim)%257;
-		ts->lookup[0][i]=pv-1;
-		ts->lookup[1][pv-1]=i;
+			pv=((pv+1)*prim)%257 - 1;
+			ts->lookup[0][i]=ll[pv];
+			ts->lookup[1][ll[pv]]=i;
 		}
 		for (i=0; i < cycles*16; ++i)
 		{
@@ -251,22 +253,22 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	uint32_t i, b;
 	uint32_t *out32=(uint32_t *)out;
 	b=0;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
-	out[b] = zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][data[b]];
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
+	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];
 
 	for (i =1 ; i< ts->cycles ; ++i)
 	{
@@ -274,27 +276,29 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		rotate_bytes(out);
 		ROTL128(((uint64_t*)out),5)
 		b=0;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];
 	}
 	ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
 	for(int i=0; i<16; ++i)
 		out[i]=ts->lookup[i&1][out[i]];
+	((uint64_t*)out)[0]+=ts->final_xor[0];
 	((uint64_t*)out)[0]^=ts->final_xor[0];
+	((uint64_t*)out)[1]+=ts->final_xor[1];
 	((uint64_t*)out)[1]^=ts->final_xor[1];
 }
 
@@ -302,7 +306,10 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 {
 	uint32_t *out32=(uint32_t *)out;
 	((uint64_t*)out)[0]^=ts->final_xor[0];
+	((uint64_t*)out)[0]-=ts->final_xor[0];
 	((uint64_t*)out)[1]^=ts->final_xor[1];
+	((uint64_t*)out)[1]-=ts->final_xor[1];
+	
 	for(int i=0; i<16; ++i)
 		out[i]=ts->lookup[~i&1][out[i]];
 	REV_ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
@@ -312,22 +319,22 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	for (i = ts->cycles - 1 ; i>=1 ; --i)
 	{
 		b=0;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];++b;
-		out[b] = rev_zpn_lookups[(ts->index[i][b])&0x3ff][out[b]];
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
+		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];
 		ROTL128(((uint64_t*)out),123)
 		rev_rotate_bytes(out);
 		REV_ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
@@ -343,22 +350,22 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	ZAF_DIFFUSE(counter_df[0], counter_df[1], counter_df[2], counter_df[3]);
 	uint8_t * ct=(uint8_t*)counter_df;
 	b=0;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
-	data[b] = rev_zpn_lookups[(ts->index[0][b]+ct[b])&0x3ff][out[b]];
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];++b;
+	data[b] = zpn_lookups[1][(ts->index[0][b]+ct[b])&0x3ff][out[b]];
 }
 
 
