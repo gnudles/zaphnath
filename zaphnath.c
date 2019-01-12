@@ -66,7 +66,28 @@ uint8_t prim_root[128]={3 , 5 , 6 , 7 , 10 , 12 , 14 , 19 , 20 , 24 , 27 , 28 , 
   b -= a;  b ^= ROTL32(a,19);  a += c; \
   c -= b;  c ^= ROTL32(b, 4);  b += a; \
 }
-
+uint32_t zpn_mat(uint32_t x)
+{
+	uint8_t *y=(uint8_t*)&x;
+	uint32_t r;
+	uint8_t *z=(uint8_t*)&r;
+	z[0]=2*y[0]+y[1]+y[2]+4*y[3];
+	z[1]=y[0]+y[1]+y[2]+5*y[3];
+	z[2]=3*y[0]+y[1]+y[2]+2*y[3];
+	z[3]=2*y[0]+y[2]-y[3];
+	return r;
+}
+uint32_t zpn_imat(uint32_t x)
+{
+        uint8_t *y=(uint8_t*)&x;
+        uint32_t r;
+        uint8_t *z=(uint8_t*)&r;
+        z[0]=3*y[0]-2*y[1]-y[2];
+        z[1]=-9*y[0]+5*y[1]+5*y[2]-y[3];
+        z[2]=-4*y[0]+3*y[1]+y[2]+y[3];
+        z[3]=2*y[0]-y[1]-y[2];
+        return r;
+}
 
 extern uint8_t zpn_lookups[2][1024][256];
 
@@ -273,6 +294,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	for (i =1 ; i< ts->cycles ; ++i)
 	{
 		ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
+		out32[0]=zpn_mat(out32[0]);
 		rotate_bytes(out);
 		ROTL128(((uint64_t*)out),5)
 		b=0;
@@ -337,6 +359,7 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];
 		ROTL128(((uint64_t*)out),123)
 		rev_rotate_bytes(out);
+		out32[0]=zpn_imat(out32[0]);
 		REV_ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
 	}
 	
