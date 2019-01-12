@@ -88,6 +88,20 @@ uint32_t zpn_imat(uint32_t x)
         z[3]=2*y[0]-y[1]-y[2];
         return r;
 }
+void zpn_mixbit(uint32_t* x)
+{
+	uint32_t b1=0x4c6ba2e9;
+	uint32_t b2=0x53a63a2b;
+	//uint32_t b1=0xffff0000;
+        //uint32_t b2=0x00ffff00;
+	uint32_t m[4]={b1&b2,b1&(~b2),b2&(~b1),~b1&~b2};
+	uint32_t d[4];
+	d[0]=(m[0]&x[0])|(m[1]&x[1])|(m[2]&x[2])|(m[3]&x[3]);
+	d[1]=(m[0]&x[1])|(m[1]&x[0])|(m[2]&x[3])|(m[3]&x[2]);
+	d[2]=(m[0]&x[2])|(m[1]&x[3])|(m[2]&x[0])|(m[3]&x[1]);
+	d[3]=(m[0]&x[3])|(m[1]&x[2])|(m[2]&x[1])|(m[3]&x[0]);
+	x[0]=d[0];x[1]=d[1];x[2]=d[2];x[3]=d[3];
+}// this function is the inverse of itself
 
 extern uint8_t zpn_lookups[2][1024][256];
 
@@ -297,6 +311,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		out32[0]=zpn_mat(out32[0]);
 		rotate_bytes(out);
 		ROTL128(((uint64_t*)out),5)
+		zpn_mixbit(out32);
 		b=0;
 		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
 		out[b] = zpn_lookups[0][(ts->index[i][b])&0x3ff][out[b]];++b;
@@ -357,6 +372,7 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
 		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];++b;
 		out[b] = zpn_lookups[1][(ts->index[i][b])&0x3ff][out[b]];
+		zpn_mixbit(out32);
 		ROTL128(((uint64_t*)out),123)
 		rev_rotate_bytes(out);
 		out32[0]=zpn_imat(out32[0]);
