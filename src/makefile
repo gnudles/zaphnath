@@ -1,3 +1,4 @@
+CFLAGS+= -O2
 all: test
 
 test.o: test.c zaphnath.h

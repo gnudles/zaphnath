@@ -2,6 +2,19 @@
 #include <malloc.h>
 #include <string.h>
 #include "zaphnath.h"
+//clang queries
+#ifndef __has_feature         // Optional of course.
+  #define __has_feature(x) 0  // Compatibility with non-clang compilers.
+#endif
+#ifndef __has_extension
+  #define __has_extension __has_feature // Compatibility with pre-3.0 compilers.
+#endif
+#ifndef __has_builtin    
+#define __has_builtin(x) 0  // Compatibility with non-clang compilers. 
+#endif 
+
+typedef uint8_t v16b __attribute__((__vector_size__(16)));
+typedef uint8_t v32b __attribute__((__vector_size__(32)));
 #define ROTL32(Y,B) ((Y<<(B))|(Y>>(32-(B))))
 #define ROTL64(Y,B) ((Y<<(B))|(Y>>(64-(B))))
 #define ROTL128(Y,B)\
@@ -11,10 +24,10 @@ if(B < 64){temp=Y[0];Y[0]=(Y[0]<<(B))|(Y[1]>>(64-B));Y[1]=(Y[1]<<(B))|(temp>>(64
 else{temp=Y[0];Y[0]=(Y[1]<<(B-64))|(Y[0]>>(128-B));Y[1]=(temp<<(B-64))|(Y[1]>>(128-B));}\
 }
 #define ZPN_DIFFUSE_ROUND(A, B, C, R, T)\
-C^=A; C=ROTL64(C,R)+T; A+=B; C-=ROTL64(B,16)+ROTL64(B,46)+ROTL64(B,50)+ROTL64(B,52)
+C^=A; C=ROTL64(C,R)+T; A+=B; C-=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61)
 
 #define REV_ZPN_DIFFUSE_ROUND(A, B, C, R, T)\
-C+=ROTL64(B,16)+ROTL64(B,46)+ROTL64(B,50)+ROTL64(B,52); A-=B; C=ROTL64((C-T),64-R); C^=A
+C+=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61); A-=B; C=ROTL64((C-T),64-R); C^=A
 
 #define ZPN_DIFFUSE256(A,B,C,D,I,J,K,L) \
 ZPN_DIFFUSE_ROUND(D,A,B,20,I);\
@@ -228,6 +241,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	{
 		ZPN_DIFFUSE256(o64[0], o64[1], o64[2], o64[3],key->cxor[i][0],
 		key->cxor[i][1],key->cxor[i][2],key->cxor[i][3]);
+		*((v32b*)enc)=__builtin_shufflevector(*(v32b*)(enc),*(v32b*)(enc), 12, 6, 10, 16, 3, 20, 27, 23, 18, 17, 0, 9, 1, 19, 14, 5, 29, 7, 8, 26, 4, 22, 11, 2, 15, 13, 21, 31, 24, 28, 30, 25);
 		zpn_mixbit(o64,temp);
 		temp[0]=ROTL64(temp[0],61);
 		temp[1]=ROTL64(temp[1],30);
@@ -304,6 +318,7 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 
 
 		zpn_mixbit(temp,d64);
+		*((v32b*)raw)=__builtin_shufflevector(*(v32b*)(raw),*(v32b*)(raw), 10, 12, 23, 4, 20, 15, 1, 17, 18, 11, 2, 22, 0, 25, 14, 24, 3, 9, 8, 13, 5, 26, 21, 7, 28, 31, 19, 6, 29, 16, 30, 27);
 		REV_ZPN_DIFFUSE256(d64[0], d64[1], d64[2], d64[3],key->cxor[i][0],
 		key->cxor[i][1],key->cxor[i][2],key->cxor[i][3]);
 
