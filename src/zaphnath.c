@@ -13,10 +13,21 @@
 #define __has_builtin(x) 0  // Compatibility with non-clang compilers. 
 #endif 
 
-typedef uint8_t v16b __attribute__((__vector_size__(16)));
 typedef uint8_t v32b __attribute__((__vector_size__(32)));
+typedef uint16_t v16w __attribute__((__vector_size__(32)));
+typedef uint32_t v8dw __attribute__((__vector_size__(32)));
+typedef uint64_t v4qw __attribute__((__vector_size__(32)));
+
+#if __has_builtin(__builtin_rotateleft32)
+#define ROTL32(Y,B) (__builtin_rotateleft32(Y,B))
+#else
 #define ROTL32(Y,B) ((Y<<(B))|(Y>>(32-(B))))
+#endif
+#if __has_builtin(__builtin_rotateleft64)
+#define ROTL64(Y,B) (__builtin_rotateleft64(Y,B))
+#else
 #define ROTL64(Y,B) ((Y<<(B))|(Y>>(64-(B))))
+#endif
 #define ROTL128(Y,B)\
 {\
 uint64_t temp;\
@@ -24,19 +35,19 @@ if(B < 64){temp=Y[0];Y[0]=(Y[0]<<(B))|(Y[1]>>(64-B));Y[1]=(Y[1]<<(B))|(temp>>(64
 else{temp=Y[0];Y[0]=(Y[1]<<(B-64))|(Y[0]>>(128-B));Y[1]=(temp<<(B-64))|(Y[1]>>(128-B));}\
 }
 #define ZPN_DIFFUSE_ROUND(A, B, C, R, T)\
-C^=A; C=ROTL64(C,R)+T; A+=B; C-=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61)
+C^=A+ROTL64(A,2); C=ROTL64(C,R)+T; A+=B; C-=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61)
 
 #define REV_ZPN_DIFFUSE_ROUND(A, B, C, R, T)\
-C+=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61); A-=B; C=ROTL64((C-T),64-R); C^=A
+C+=ROTL64(B,5)+ROTL64(B,46)+ROTL64(B,36)+ROTL64(B,61); A-=B; C=ROTL64((C-T),64-R); C^=A+ROTL64(A,2)
 
 #define ZPN_DIFFUSE256(A,B,C,D,I,J,K,L) \
 ZPN_DIFFUSE_ROUND(D,A,B,20,I);\
 ZPN_DIFFUSE_ROUND(C,B,A,11,J);\
 ZPN_DIFFUSE_ROUND(B,D,C,30,K);\
-ZPN_DIFFUSE_ROUND(A,B,D,51,L);
+ZPN_DIFFUSE_ROUND(A,C,D,51,L);
 
 #define REV_ZPN_DIFFUSE256(A,B,C,D,I,J,K,L) \
-REV_ZPN_DIFFUSE_ROUND(A,B,D,51,L);\
+REV_ZPN_DIFFUSE_ROUND(A,C,D,51,L);\
 REV_ZPN_DIFFUSE_ROUND(B,D,C,30,K);\
 REV_ZPN_DIFFUSE_ROUND(C,B,A,11,J);\
 REV_ZPN_DIFFUSE_ROUND(D,A,B,20,I);
@@ -223,16 +234,23 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
 	uint32_t i, b;
 #define o64 ((uint64_t*)enc)
+	*((v4qw*)o64)=(*((v4qw*)raw))+(*((v4qw*)counter_df));
+/*
 	o64[0]=((uint64_t*)raw)[0]^counter_df[0];
 	o64[1]=((uint64_t*)raw)[1]^counter_df[1];
 	o64[2]=((uint64_t*)raw)[2]^counter_df[2];
 	o64[3]=((uint64_t*)raw)[3]^counter_df[3];
+*/
 	uint64_t temp[4];
-/*	o64[0]*=18150808750145UL;//inverse: *4065217
+/*
+	o64[0]*=18150808750145UL;//inverse: *4065217
 	o64[1]*=18150808750145UL;//inverse: *4065217
 	o64[2]*=18150808750145UL;//inverse: *4065217
 	o64[3]*=18150808750145UL;//inverse: *4065217
 */
+
+	zpn_mixbit(o64,temp);
+	*((v32b*)enc)=__builtin_shufflevector(*(v32b*)(temp),*(v32b*)(temp), 12, 6, 10, 16, 3, 20, 27, 23, 18, 17, 0, 9, 1, 19, 14, 5, 29, 7, 8, 26, 4, 22, 11, 2, 15, 13, 21, 31, 24, 28, 30, 25);
 	MUL18150808750145(o64[0],temp[0]);
 	MUL18150808750145(o64[1],temp[0]);
 	MUL18150808750145(o64[2],temp[0]);
@@ -241,20 +259,21 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	{
 		ZPN_DIFFUSE256(o64[0], o64[1], o64[2], o64[3],key->cxor[i][0],
 		key->cxor[i][1],key->cxor[i][2],key->cxor[i][3]);
-		*((v32b*)enc)=__builtin_shufflevector(*(v32b*)(enc),*(v32b*)(enc), 12, 6, 10, 16, 3, 20, 27, 23, 18, 17, 0, 9, 1, 19, 14, 5, 29, 7, 8, 26, 4, 22, 11, 2, 15, 13, 21, 31, 24, 28, 30, 25);
-		zpn_mixbit(o64,temp);
+		*((v32b*)temp)=__builtin_shufflevector(*(v32b*)(enc),*(v32b*)(enc), 12, 6, 10, 16, 3, 20, 27, 23, 18, 17, 0, 9, 1, 19, 14, 5, 29, 7, 8, 26, 4, 22, 11, 2, 15, 13, 21, 31, 24, 28, 30, 25);
 		temp[0]=ROTL64(temp[0],61);
 		temp[1]=ROTL64(temp[1],30);
 		temp[2]=ROTL64(temp[2],41);
 		temp[3]=ROTL64(temp[3],19);
 		zpn_imat(temp,o64);
+/*
 #define ROTF 55
-		
-		temp[0]=((o64[0]<<ROTF)|(o64[3]>>(64-ROTF)))+key->cadd[i][0];
-		temp[1]=((o64[1]<<ROTF)|(o64[0]>>(64-ROTF)))+key->cadd[i][1];
-		temp[2]=((o64[2]<<ROTF)|(o64[1]>>(64-ROTF)))+key->cadd[i][2];
-		temp[3]=((o64[3]<<ROTF)|(o64[2]>>(64-ROTF)))+key->cadd[i][3];
+		temp[0]=((o64[0]<<ROTF)|(o64[3]>>(64-ROTF)));
+		temp[1]=((o64[1]<<ROTF)|(o64[0]>>(64-ROTF)));
+		temp[2]=((o64[2]<<ROTF)|(o64[1]>>(64-ROTF)));
+		temp[3]=((o64[3]<<ROTF)|(o64[2]>>(64-ROTF)));
 #undef ROTF 
+*/
+		*(v4qw*)temp=(*(v4qw*)o64)+*(v4qw*)key->cadd[i];
 		zpn_mat(temp,o64);
 	}
 
@@ -269,19 +288,25 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	MUL4065217(o64[2],temp[0]);
 	MUL4065217(o64[3],temp[0]);
 
+	*(v4qw*)o64^=*(v4qw*)key->final_xor;
+/*
 	o64[0]^=key->final_xor[0];
 	o64[1]^=key->final_xor[1];
 	o64[2]^=key->final_xor[2];
 	o64[3]^=key->final_xor[3];
+*/
 }
 
 void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t *raw, uint8_t *enc)
 {
 #define d64 ((uint64_t*)raw)
+/*
 	d64[0]=o64[0]^key->final_xor[0];
 	d64[1]=o64[1]^key->final_xor[1];
 	d64[2]=o64[2]^key->final_xor[2];
 	d64[3]=o64[3]^key->final_xor[3];
+*/
+	*(v4qw*)d64=(*(v4qw*)o64)^(*(v4qw*)key->final_xor);
 #undef o64
 	uint64_t temp[4];
 /*	
@@ -300,25 +325,29 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	for (i = key->cycles - 1 ; i >= 0 ; --i)
 	{
 		zpn_imat(d64,temp);
+
+		*((v4qw*)d64)=*((v4qw*)t64)-(*((v4qw*)key->cadd[i]));
+/*
 		t64[0]-=key->cadd[i][0];
 		t64[1]-=key->cadd[i][1];
 		t64[2]-=key->cadd[i][2];
 		t64[3]-=key->cadd[i][3];
+*/
+/*
 #define ROTF 55
 		d64[0]=(t64[0]>>ROTF)|(t64[1]<<(64-ROTF));
 		d64[1]=(t64[1]>>ROTF)|(t64[2]<<(64-ROTF));
 		d64[2]=(t64[2]>>ROTF)|(t64[3]<<(64-ROTF));
 		d64[3]=(t64[3]>>ROTF)|(t64[0]<<(64-ROTF));
 #undef ROTF
+*/
 		zpn_mat(d64,t64);
 		temp[0]=ROTL64(temp[0],3);
 		temp[1]=ROTL64(temp[1],34);
 		temp[2]=ROTL64(temp[2],23);
 		temp[3]=ROTL64(temp[3],45);
 
-
-		zpn_mixbit(temp,d64);
-		*((v32b*)raw)=__builtin_shufflevector(*(v32b*)(raw),*(v32b*)(raw), 10, 12, 23, 4, 20, 15, 1, 17, 18, 11, 2, 22, 0, 25, 14, 24, 3, 9, 8, 13, 5, 26, 21, 7, 28, 31, 19, 6, 29, 16, 30, 27);
+		*((v32b*)raw)=__builtin_shufflevector(*(v32b*)(temp),*(v32b*)(temp), 10, 12, 23, 4, 20, 15, 1, 17, 18, 11, 2, 22, 0, 25, 14, 24, 3, 9, 8, 13, 5, 26, 21, 7, 28, 31, 19, 6, 29, 16, 30, 27);
 		REV_ZPN_DIFFUSE256(d64[0], d64[1], d64[2], d64[3],key->cxor[i][0],
 		key->cxor[i][1],key->cxor[i][2],key->cxor[i][3]);
 
@@ -327,6 +356,8 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	MUL4065217(d64[1],temp[0]);
 	MUL4065217(d64[2],temp[0]);
 	MUL4065217(d64[3],temp[0]);
+	*((v32b*)temp)=__builtin_shufflevector(*(v32b*)(d64),*(v32b*)(d64), 10, 12, 23, 4, 20, 15, 1, 17, 18, 11, 2, 22, 0, 25, 14, 24, 3, 9, 8, 13, 5, 26, 21, 7, 28, 31, 19, 6, 29, 16, 30, 27);
+	zpn_mixbit(temp,d64);
 /*
 	d64[0]*=4065217UL;
 	d64[1]*=4065217UL;
@@ -341,10 +372,11 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 
 	ZPN_DIFFUSE256(counter_df[0], counter_df[1], counter_df[2], counter_df[3],
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
-	d64[0]^=counter_df[0];
+/*	d64[0]^=counter_df[0];
 	d64[1]^=counter_df[1];
 	d64[2]^=counter_df[2];
-	d64[3]^=counter_df[3];
+	d64[3]^=counter_df[3];*/
+	*((v4qw*)d64)=(*((v4qw*)d64))-(*((v4qw*)counter_df));
 }
 
 
