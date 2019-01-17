@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <string.h>
 #include "zaphnath.h"
+#include "mod256.c"
 #define ROTL32(Y,B) ((Y<<(B))|(Y>>(32-(B))))
 #define ROTL64(Y,B) ((Y<<(B))|(Y>>(64-(B))))
 #define ROTL128(Y,B)\
@@ -310,7 +311,8 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
 	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];++b;
 	out[b] = zpn_lookups[0][(ts->index[0][b]+ct[b])&0x3ff][data[b]];
-
+	out32[0] = find_mod_invert(out32[0]*2+1,33)>>1;
+	
 	for (i =1 ; i< ts->cycles ; ++i)
 	{
 		ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
@@ -347,6 +349,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 
 void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, uint8_t *data, uint8_t *out)
 {
+	//big TODO: Move to use 'data' instead of 'out'. we are not supposed to change 'out'.
 	uint32_t *out32=(uint32_t *)out;
 	((uint64_t*)out)[0]^=ts->final_xor[0];
 	((uint64_t*)out)[0]-=ts->final_xor[0];
@@ -384,6 +387,8 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct time_schedule *ts, ui
 		out32[0]=zpn_imat(out32[0]);
 		REV_ZAF_DIFFUSE(out32[0], out32[1], out32[2], out32[3]);
 	}
+	
+	out32[0] = find_mod_invert(out32[0]*2+1,33)>>1;
 	
 	uint32_t counter_df[4];
 	counter ^= ts->counter_mask[0];
