@@ -211,8 +211,8 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct zpn_ke
 	return 0;
 }
 #define DEBUG
-#define DEBUG2
-#define DEBUG3
+//#define DEBUG2
+//#define DEBUG3
 void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t *raw, uint8_t *enc)
 {
 	uint64_t counter_df[4];
@@ -226,19 +226,20 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 		printf("%02x ",raw[j]);
 	printf("\n");
 #endif
-	temp[0]=counter + key->counter_mask[0];
-	temp[1]=key->counter_mask[1];
-	temp[2]=nounce + key->counter_mask[2];
-	temp[3]=key->counter_mask[3];
+	counter_df[0]=counter + key->counter_mask[0];
+	counter_df[1]=key->counter_mask[1];
+	counter_df[2]=nounce + key->counter_mask[2];
+	counter_df[3]=key->counter_mask[3];
 #ifdef DEBUG
 	printf("counter before mix\n");
 	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)temp)[j]);
+		printf("%02x ",((uint8_t*)counter_df)[j]);
 	printf("\n");
 #endif
-	zpn_imat(temp,counter_df);
-	ZPN_DIFFUSE256(counter_df[0], counter_df[1], counter_df[2], counter_df[3],
+	zpn_imat(counter_df,temp);
+	ZPN_DIFFUSE256(temp[0], temp[1], temp[2], temp[3],
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
+	zpn_imat(temp,counter_df);
 #ifdef DEBUG
 	printf("counter after mix\n");
 	for (j=0;j<32;++j)
@@ -345,14 +346,14 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 			enc32[b+2]=ROTL32(enc32[b+2],shifts[0]&0x1f);shifts[0]>>=5;
 			enc32[b+3]=ROTL32(enc32[b+3],shifts[0]&0x1f);shifts[0]>>=5;
 		}
-#ifdef DEBUG3
+#ifdef DEBUG4
 	printf ("encrypt: after 8x32 rotation\n");
 	for (j=0;j<32;++j)
 		printf("%02x ",enc8[j]);
 	printf("\n");
 #endif
 		zpn_mixbits(enc64,temp,mixbits[0],mixbits[1]);
-#ifdef DEBUG3
+#ifdef DEBUG5
 	printf ("encrypt: after mixbit\n");
 	for (j=0;j<32;++j)
 		printf("%02x ",((uint8_t*)temp)[j]);
@@ -360,7 +361,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 #endif
 		zpn_imat(temp,enc64);
 		*(v4qw*)enc64=(*(v4qw*)enc64)+*(v4qw*)key->cadd[i];
-#ifdef DEBUG3
+#ifdef DEBUG6
 	printf ("encrypt: cycle final addition\n");
 	for (j=0;j<32;++j)
 		printf("%02x ",enc8[j]);
@@ -403,13 +404,14 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	uint64_t shifts32;
 	uint64_t mixbits[2];
 	uint64_t counter_df[4];
-	temp[0]=counter + key->counter_mask[0];
-	temp[1]=key->counter_mask[1];
-	temp[2]=nounce + key->counter_mask[2];
-	temp[3]=key->counter_mask[3];
-	zpn_imat(temp,counter_df);
-	ZPN_DIFFUSE256(counter_df[0], counter_df[1], counter_df[2], counter_df[3],
+	counter_df[0]=counter + key->counter_mask[0];
+	counter_df[1]=key->counter_mask[1];
+	counter_df[2]=nounce + key->counter_mask[2];
+	counter_df[3]=key->counter_mask[3];
+	zpn_imat(counter_df,temp);
+	ZPN_DIFFUSE256(temp[0], temp[1], temp[2], temp[3],
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
+	zpn_imat(temp,counter_df);
 	
 
 #define raw64 ((uint64_t*)raw)
