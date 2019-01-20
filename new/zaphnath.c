@@ -82,10 +82,12 @@ static inline void zpn_mat(uint64_t *in, uint64_t *out)
  1  2  1 -1
  0  1 -1 -1
 */
+	in[3]+=ROTL64(in[0],32);
 	out[0]=-in[0]-in[1]+(in[2]<<1)+in[3];
 	out[1]=((in[0]-in[1]+in[3])<<1)-in[2];
 	out[2]=in[0]+(in[1]<<1)+in[2]-in[3];
 	out[3]=in[1]-in[2]-in[3];
+	out[0]-=ROTL64(out[2],32);
 }
 static inline void zpn_imat(uint64_t *in, uint64_t *out)
 {
@@ -95,10 +97,13 @@ static inline void zpn_imat(uint64_t *in, uint64_t *out)
 -2 -1  0 -4
  9  4  1 15
 */
+	in[0]+=ROTL64(in[2],32);
         out[0]=-in[0]-(in[0]<<1)-in[1]-in[3]-(in[3]<<2);
         out[1]=-in[0]+((in[0]+in[3])<<3)-in[1]+((in[1]+in[3])<<2)+in[2];
         out[2]=-(in[0]<<1)-in[1]-(in[3]<<2);
         out[3]=in[0]+(in[0]<<3)+(in[1]<<2)+in[2]+(in[3]<<4)-in[3];
+
+	out[3]-=ROTL64(out[0],32);
 }
 
 static inline void zpn_mixbits(uint64_t* in,uint64_t *out, uint64_t b1, uint64_t b2)
