@@ -23,20 +23,44 @@ typedef uint64_t v4qw __attribute__((__vector_size__(32)));
 #if __has_builtin(__builtin_rotateleft16)
 #define ROTL16(Y,B) (__builtin_rotateleft16(Y,B))
 #else
-#define ROTL16(Y,B) ((Y<<(B))|(Y>>(16-(B))))
+#define ROTL16(Y,B) ((Y<<(B))|(Y>>((16-(B))&0xf)))
 #endif
 
 #if __has_builtin(__builtin_rotateleft32)
 #define ROTL32(Y,B) (__builtin_rotateleft32(Y,B))
 #else
-#define ROTL32(Y,B) ((Y<<(B))|(Y>>(32-(B))))
+#define ROTL32(Y,B) ((Y<<(B))|(Y>>((32-(B))&0x1f)))
 #endif
 
 #if __has_builtin(__builtin_rotateleft64)
 #define ROTL64(Y,B) (__builtin_rotateleft64(Y,B))
 #else
-#define ROTL64(Y,B) ((Y<<(B))|(Y>>(64-(B))))
+#define ROTL64(Y,B) ((Y<<(B))|(Y>>((64-(B))&0x3f)))
 #endif
+
+
+
+
+
+#if __has_builtin(__builtin_rotateright16)
+#define ROTR16(Y,B) (__builtin_rotateright16(Y,B))
+#else
+#define ROTR16(Y,B) ((Y>>(B))|(Y<<((16-(B))&0xf)))
+#endif
+
+#if __has_builtin(__builtin_rotateright32)
+#define ROTR32(Y,B) (__builtin_rotateright32(Y,B))
+#else
+#define ROTR32(Y,B) ((Y>>(B))|(Y<<((32-(B))&0x1f)))
+#endif
+
+#if __has_builtin(__builtin_rotateright64)
+#define ROTR64(Y,B) (__builtin_rotateright64(Y,B))
+#else
+#define ROTR64(Y,B) ((Y>>(B))|(Y<<((64-(B))&0x3f)))
+#endif
+
+
 
 #define ROTL128(Y,B)\
 {\
@@ -74,32 +98,7 @@ REV_ZPN_DIFFUSE_ROUND(A,B,C,D,18,I);
   c -= b;  c ^= ROTL32(b, 4);  b += a; \
 }
 
-static inline void zpn_mat(uint64_t *in, uint64_t *out)
-{
-/*
--1 -1  2  1
- 2 -2 -1  2
- 1  2  1 -1
- 0  1 -1 -1
-*/
-	out[0]=-in[0]-in[1]+(in[2]<<1)+in[3];
-	out[1]=((in[0]-in[1]+in[3])<<1)-in[2];
-	out[2]=in[0]+(in[1]<<1)+in[2]-in[3];
-	out[3]=in[1]-in[2]-in[3];
-}
-static inline void zpn_imat(uint64_t *in, uint64_t *out)
-{
-/*
--3 -1  0 -5
- 7  3  1 12
--2 -1  0 -4
- 9  4  1 15
-*/
-        out[0]=-in[0]-(in[0]<<1)-in[1]-in[3]-(in[3]<<2);
-        out[1]=-in[0]+((in[0]+in[3])<<3)-in[1]+((in[1]+in[3])<<2)+in[2];
-        out[2]=-(in[0]<<1)-in[1]-(in[3]<<2);
-        out[3]=in[0]+(in[0]<<3)+(in[1]<<2)+in[2]+(in[3]<<4)-in[3];
-}
+
 
 static inline void zpn_mixbits(uint64_t* in,uint64_t *out, uint64_t b1, uint64_t b2)
 {
@@ -168,14 +167,6 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct zpn_ke
 		exp_key->counter_mask[2] = ((uint64_t*)sponge)[0];
 		zpn_feed_sponge(sponge,sponge_len,0);
 		exp_key->counter_mask[3] = ((uint64_t*)sponge)[0];
-		zpn_feed_sponge(sponge,sponge_len,0);
-		exp_key->final_add[0] = ((uint64_t*)sponge)[0];
-		zpn_feed_sponge(sponge,sponge_len,0);
-		exp_key->final_add[1] = ((uint64_t*)sponge)[0];
-		zpn_feed_sponge(sponge,sponge_len,0);
-		exp_key->final_add[2] = ((uint64_t*)sponge)[0];
-		zpn_feed_sponge(sponge,sponge_len,0);
-		exp_key->final_add[3] = ((uint64_t*)sponge)[0];
 //		ts->all_shifts_xor[0]=ts->all_shifts_xor[1]=ts->all_shifts_xor[2]=ts->all_shifts_xor[3]=0;
 		for (i=0;i<cycles;++i)
 		{
@@ -187,14 +178,10 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct zpn_ke
 			exp_key->cadd[i][2]=((uint64_t*)sponge)[0];
 			zpn_feed_sponge(sponge,sponge_len,0);
 			exp_key->cadd[i][3]=((uint64_t*)sponge)[0];
-			zpn_feed_sponge(sponge,sponge_len,0);
-			exp_key->cshifts_mixbits[i][0]=((uint64_t*)sponge)[0];
-			zpn_feed_sponge(sponge,sponge_len,0);
-			exp_key->cshifts_mixbits[i][1]=((uint64_t*)sponge)[0];
-			zpn_feed_sponge(sponge,sponge_len,0);
-			exp_key->cshifts_mixbits[i][2]=((uint64_t*)sponge)[0];
-			zpn_feed_sponge(sponge,sponge_len,0);
-			exp_key->cshifts_mixbits[i][3]=((uint64_t*)sponge)[0];
+//			zpn_feed_sponge(sponge,sponge_len,0);
+//			exp_key->cshifts_mixbits[i][0]=((uint64_t*)sponge)[0];
+//			zpn_feed_sponge(sponge,sponge_len,0);
+//			exp_key->cshifts_mixbits[i][1]=((uint64_t*)sponge)[0];
 /*			ts->all_shifts_xor[0]^=ts->cshifts[i][0];
 			ts->all_shifts_xor[1]^=ts->cshifts[i][1];
 			ts->all_shifts_xor[2]^=ts->cmixbits[i][0];
@@ -210,16 +197,148 @@ int zpn_expand_key(uint8_t *key, uint32_t length, uint32_t cycles, struct zpn_ke
 	}
 	return 0;
 }
+
+static inline void zpn_mat(uint8_t *in, uint8_t *out)
+{
+/*
+-1 -1  2  1
+ 2 -2 -1  2
+ 1  2  1 -1
+ 0  1 -1 -1
+*/
+	uint64_t temp_in[4];
+	uint64_t temp_out[4];
+	memcpy(temp_in, in, 4*8);
+	temp_out[0]=-temp_in[0]-temp_in[1]+(temp_in[2]<<1)+temp_in[3];
+	temp_out[1]=((temp_in[0]-temp_in[1]+temp_in[3])<<1)-temp_in[2];
+	temp_out[2]=temp_in[0]+(temp_in[1]<<1)+temp_in[2]-temp_in[3];
+	temp_out[3]=temp_in[1]-temp_in[2]-temp_in[3];
+	memcpy(out, temp_out, 4*8);
+}
+static inline void zpn_imat(uint8_t *in, uint8_t *out)
+{
+	uint64_t temp_in[4];
+	uint64_t temp_out[4];
+	memcpy(temp_in, in, 4*8);
+/*
+-3 -1  0 -5
+ 7  3  1 12
+-2 -1  0 -4
+ 9  4  1 15
+*/
+        temp_out[0]=-temp_in[0]-(temp_in[0]<<1)-temp_in[1]-temp_in[3]-(temp_in[3]<<2);
+        temp_out[1]=-temp_in[0]+((temp_in[0]+temp_in[3])<<3)-temp_in[1]+((temp_in[1]+temp_in[3])<<2)+temp_in[2];
+        temp_out[2]=-(temp_in[0]<<1)-temp_in[1]-(temp_in[3]<<2);
+        temp_out[3]=temp_in[0]+(temp_in[0]<<3)+(temp_in[1]<<2)+temp_in[2]+(temp_in[3]<<4)-temp_in[3];
+	memcpy(out, temp_out, 4*8);
+}
+/*
+other matrices to try:
+-1 -1  2  1
+ 2 -2 -1  2
+ 1  2  1 -1
+-9  1 -1 -4
+inv:
+ -3 -16 -15  -5
+  7  39  37  12
+ -2 -13 -12  -4
+  9  49  46  15
+  
+*/
+
+static inline void free_rotate64(uint8_t *raw, uint64_t shifts)//only 24 bits from shifts are used.
+{
+	uint64_t temp[4];
+	memcpy(temp,raw, 4*8);
+	temp[0]=ROTL64(temp[0],shifts&0x3f);shifts>>=6;
+	temp[1]=ROTL64(temp[1],shifts&0x3f);shifts>>=6;
+	temp[2]=ROTL64(temp[2],shifts&0x3f);shifts>>=6;
+	temp[3]=ROTL64(temp[3],shifts&0x3f);shifts>>=6;
+	memcpy(raw,temp, 4*8);
+}
+static inline void free_rotate32(uint8_t *raw, uint64_t shifts) //only 40 bits from shifts are used.
+{
+	uint32_t temp[8];
+	memcpy(temp,raw, 8*4);
+	int b;
+	for (b =0 ; b < 8 ; b+=4)
+	{
+		temp[b+0]=ROTL32(temp[b+0],shifts&0x1f);shifts>>=5;
+		temp[b+1]=ROTL32(temp[b+1],shifts&0x1f);shifts>>=5;
+		temp[b+2]=ROTL32(temp[b+2],shifts&0x1f);shifts>>=5;
+		temp[b+3]=ROTL32(temp[b+3],shifts&0x1f);shifts>>=5;
+	}
+	memcpy(raw,temp, 8*4);
+}
+static inline void free_rotate16(uint8_t *raw, uint64_t shifts) //64 bits from shifts are used.
+{
+	uint16_t temp[16];
+	memcpy(temp,raw, 16*2);
+	int b;
+	for (b =0 ; b < 16 ; b+=4)
+	{
+		temp[b+0]=ROTL16(temp[b+0],shifts&0xf);shifts>>=4;
+		temp[b+1]=ROTL16(temp[b+1],shifts&0xf);shifts>>=4;
+		temp[b+2]=ROTL16(temp[b+2],shifts&0xf);shifts>>=4;
+		temp[b+3]=ROTL16(temp[b+3],shifts&0xf);shifts>>=4;
+	}
+	memcpy(raw,temp, 16*2);
+}
+
+static inline void rev_free_rotate64(uint8_t *raw, uint64_t shifts)//only 24 bits from shifts are used.
+{
+	uint64_t temp[4];
+	memcpy(temp,raw, 4*8);
+	temp[0]=ROTR64(temp[0],shifts&0x3f);shifts>>=6;
+	temp[1]=ROTR64(temp[1],shifts&0x3f);shifts>>=6;
+	temp[2]=ROTR64(temp[2],shifts&0x3f);shifts>>=6;
+	temp[3]=ROTR64(temp[3],shifts&0x3f);shifts>>=6;
+	memcpy(raw,temp, 4*8);
+}
+static inline void rev_free_rotate32(uint8_t *raw, uint64_t shifts) //only 40 bits from shifts are used.
+{
+	uint32_t temp[8];
+	memcpy(temp,raw, 8*4);
+	int b;
+	for (b =0 ; b < 8 ; b+=4)
+	{
+		temp[b+0]=ROTR32(temp[b+0],shifts&0x1f);shifts>>=5;
+		temp[b+1]=ROTR32(temp[b+1],shifts&0x1f);shifts>>=5;
+		temp[b+2]=ROTR32(temp[b+2],shifts&0x1f);shifts>>=5;
+		temp[b+3]=ROTR32(temp[b+3],shifts&0x1f);shifts>>=5;
+	}
+	memcpy(raw,temp, 8*4);
+}
+static inline void rev_free_rotate16(uint8_t *raw, uint64_t shifts) //64 bits from shifts are used.
+{
+	uint16_t temp[16];
+	memcpy(temp,raw, 16*2);
+	int b;
+	for (b =0 ; b < 16 ; b+=4)
+	{
+		temp[b+0]=ROTR16(temp[b+0],shifts&0xf);shifts>>=4;
+		temp[b+1]=ROTR16(temp[b+1],shifts&0xf);shifts>>=4;
+		temp[b+2]=ROTR16(temp[b+2],shifts&0xf);shifts>>=4;
+		temp[b+3]=ROTR16(temp[b+3],shifts&0xf);shifts>>=4;
+	}
+	memcpy(raw,temp, 16*2);
+}
+
+#define ROR64(x, r) ((x >> r) | (x << (64 - r)))
+#define ROL64(x, r) ((x << r) | (x >> (64 - r)))
+#define SPECK_R(x, y, k) (x = ROR64(x, 8), x += y, x ^= k, y = ROL64(y, 3), y ^= x)
+#define REV_SPECK_R(x, y, k) (y ^= x, y = ROR64(y, 3), x ^= k, x -= y, x = ROL64(x, 8))
+
 #define DEBUG
-//#define DEBUG2
-//#define DEBUG3
 void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t *raw, uint8_t *enc)
 {
 	uint64_t counter_df[4];
 	uint64_t temp[4];
-	uint64_t shifts[2];
-	uint64_t mixbits[2];
-	int32_t i, j, b, step;
+	uint64_t shifts[4];
+	int32_t i;
+#ifdef DEBUG
+	int32_t j;
+#endif	
 #ifdef DEBUG
 	printf("zpn_encrypt: nounce: %016lx counter: %016lx raw:\n",nounce,counter);
 	for (j=0;j<32;++j)
@@ -236,10 +355,10 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 		printf("%02x ",((uint8_t*)counter_df)[j]);
 	printf("\n");
 #endif
-	zpn_imat(counter_df,temp);
+	zpn_imat((uint8_t*)counter_df,(uint8_t*)temp);
 	ZPN_DIFFUSE256(temp[0], temp[1], temp[2], temp[3],
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
-	zpn_imat(temp,counter_df);
+	zpn_imat((uint8_t*)temp,(uint8_t*)counter_df);
 #ifdef DEBUG
 	printf("counter after mix\n");
 	for (j=0;j<32;++j)
@@ -262,236 +381,100 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 		printf("%02x ",((uint8_t*)enc8)[j]);
 	printf("\n");
 #endif
-/*
-	enc64[0]=((uint64_t*)raw)[0]+counter_df[0];
-	enc64[1]=((uint64_t*)raw)[1]+counter_df[1];
-	enc64[2]=((uint64_t*)raw)[2]+counter_df[2];
-	enc64[3]=((uint64_t*)raw)[3]+counter_df[3];
-*/
+
 	for (i =0 ; i< key->cycles ; ++i)
 	{
-		for (step=0;step<4;step+=2)
-		{
-#ifdef DEBUG
-		printf("beginning of cycle %d, step %d \n",i,step);
-		for (j=0;j<32;++j)
-			printf("%02x ",enc8[j]);
-		printf("\n");
-#endif
-		shifts[0]=counter_df[0] ^ key->cshifts_mixbits[i][step+0]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
-		shifts[1]=counter_df[1] ^ key->cshifts_mixbits[i][step+1]; // for 16*16 (16*4=64)
-		
-		mixbits[0]=counter_df[2] ^ key->cshifts_mixbits[i][(step+2)&3];
-		mixbits[1]=counter_df[3] ^ key->cshifts_mixbits[i][(step+3)&3];
-		zpn_imat(enc64,temp); // temp = imat*enc;
-		
-#ifdef DEBUG3
-		printf("rotating 4x64: %d, %d, %d, %d\n",(int)(shifts[0]&0x3f)
-				,(int)((shifts[0]>>6)&0x3f),(int)((shifts[0]>>12)&0x3f)
-				,(int)((shifts[0]>>18)&0x3f));
-#endif
-#define CUR_W temp64
-		CUR_W[0]=ROTL64(CUR_W[0],shifts[0]&0x3f);shifts[0]>>=6;
-		CUR_W[1]=ROTL64(CUR_W[1],shifts[0]&0x3f);shifts[0]>>=6;
-		CUR_W[2]=ROTL64(CUR_W[2],shifts[0]&0x3f);shifts[0]>>=6;
-		CUR_W[3]=ROTL64(CUR_W[3],shifts[0]&0x3f);shifts[0]>>=6;
-		zpn_imat(temp,enc64); // temp = imat*enc;
-		for (b =0 ; b < 16 ; b+=4)
-		{
-			enc16[b+0]=ROTL16(enc16[b+0],shifts[1]&0xf);shifts[1]>>=4;
-			enc16[b+1]=ROTL16(enc16[b+1],shifts[1]&0xf);shifts[1]>>=4;
-			enc16[b+2]=ROTL16(enc16[b+2],shifts[1]&0xf);shifts[1]>>=4;
-			enc16[b+3]=ROTL16(enc16[b+3],shifts[1]&0xf);shifts[1]>>=4;
-		}
-#ifdef DEBUG3
-		printf ("encrypt: before mat mul\n");
-		for (j=0;j<32;++j)
-			printf("%02x ",((uint8_t*)enc8)[j]);
-		printf("\n");
-#endif
-		zpn_imat(enc64,temp); // temp = imat*enc;
-		#ifdef DEBUG3
-		printf ("encrypt: before temp addition\n");
-		for (j=0;j<32;++j)
-			printf("%02x ",((uint8_t*)temp)[j]);
-		printf("\n");
-		#endif
-		
-		temp[0]+=0xa5a5a5a578787878; // propagate bits by addition.
-		temp[1]+=0x2d2d2d2d1e1e1e1e;
-		temp[2]+=0x969696964b4b4b4b;
-		temp[3]+=0x3c3c3c3cf0f0f0f0;
+		shifts[0]=counter_df[0] ^ key->cadd[i][0]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
+		shifts[1]=counter_df[1] ^ key->cadd[i][1]; // for 16*16 (16*4=64)
+		shifts[2]=counter_df[2] ^ key->cadd[i][2]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
+		shifts[3]=counter_df[3] ^ key->cadd[i][3]; // for 16*16 (16*4=64)
 
-#ifdef DEBUG3
-	printf ("encrypt: before shuffle\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)temp)[j]);
-	printf("\n");
-#endif
-#if __has_builtin(__builtin_shufflevector)
-		*((v32b*)enc)=__builtin_shufflevector(*(v32b*)(temp),*(v32b*)(temp), BYTE_SHUFFLE);
-#else
-		*((v32b*)enc)=__builtin_shuffle (*(v32b*)(temp), (v32b){BYTE_SHUFFLE});
-#endif
-#ifdef DEBUG3
-	printf ("encrypt: after shuffle\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",enc8[j]);
-	printf("\n");
-#endif
-		for (b =0 ; b < 8 ; b+=4)
-		{
-			enc32[b+0]=ROTL32(enc32[b+0],shifts[0]&0x1f);shifts[0]>>=5;
-			enc32[b+1]=ROTL32(enc32[b+1],shifts[0]&0x1f);shifts[0]>>=5;
-			enc32[b+2]=ROTL32(enc32[b+2],shifts[0]&0x1f);shifts[0]>>=5;
-			enc32[b+3]=ROTL32(enc32[b+3],shifts[0]&0x1f);shifts[0]>>=5;
-		}
-#ifdef DEBUG4
-	printf ("encrypt: after 8x32 rotation\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",enc8[j]);
-	printf("\n");
-#endif
-		zpn_mixbits(enc64,temp,mixbits[0],mixbits[1]);
-#ifdef DEBUG5
-	printf ("encrypt: after mixbit\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)temp)[j]);
-	printf("\n");
-#endif
-		zpn_imat(temp,enc64);
-		*(v4qw*)enc64=(*(v4qw*)enc64)+*(v4qw*)key->cadd[i];
-#ifdef DEBUG6
-	printf ("encrypt: cycle final addition\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",enc8[j]);
-	printf("\n");
-#endif
-		}
+		free_rotate16(enc,shifts[1]);
+		free_rotate64(enc,shifts[2]);
+		SPECK_R(enc64[0],enc64[1],key->cadd[i][0]);
+		SPECK_R(enc64[2],enc64[3],key->cadd[i][1]);
+		free_rotate32(enc,shifts[2]>>24);
+		free_rotate64(enc,shifts[0]);
+		SPECK_R(enc64[2],enc64[1],key->cadd[i][3]);
+		SPECK_R(enc64[0],enc64[3],key->cadd[i][2]);
+		free_rotate16(enc,shifts[3]);
+		free_rotate32(enc,shifts[0]>>24);
+		zpn_imat(enc8,(uint8_t*)temp); // temp = imat*enc;
+		//zpn_imat(temp,enc8); // temp = imat*enc;
+		*(v4qw*)enc64=(*(v4qw*)temp)+*(v4qw*)key->cadd[i];
+		
 	}
-#ifdef DEBUG2
-	for (j=0;j<32;++j)
-		printf("%02x ",enc8[j]);
-	printf("\n");
-#endif
-	zpn_imat(enc64,temp);
-#ifdef DEBUG2
-	printf ("before final addition:\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)temp)[j]);
-	printf("\n");
-	printf ("added with\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)key->final_add)[j]);
-	printf("\n");
-#endif
-	*(v4qw*)enc64 = (*(v4qw*)temp) + (*(v4qw*)key->final_add);
-#ifdef DEBUG
-	printf ("output from encrypt:\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",enc8[j]);
-	printf("\n");
-#endif
+
 #undef enc64
 #undef enc32
 #undef enc16
+	
+#ifdef DEBUG
+	printf("encrypt: output\n");
+	for (j=0;j<32;++j)
+		printf("%02x ",((uint8_t*)enc8)[j]);
+	printf("\n");
+#endif
 }
 
 void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t *raw, uint8_t *enc)
 {
 	uint64_t temp[4];
-	uint64_t shifts[2];
-	uint64_t shifts32;
-	uint64_t mixbits[2];
+	uint64_t shifts[4];
 	uint64_t counter_df[4];
+#ifdef DEBUG
+	int32_t j;
+#endif	
+#ifdef DEBUG
+	printf("zpn_decrypt: nounce: %016lx counter: %016lx enc:\n",nounce,counter);
+	for (j=0;j<32;++j)
+		printf("%02x ",enc[j]);
+	printf("\n");
+#endif
 	counter_df[0]=counter + key->counter_mask[0];
 	counter_df[1]=key->counter_mask[1];
 	counter_df[2]=nounce + key->counter_mask[2];
 	counter_df[3]=key->counter_mask[3];
-	zpn_imat(counter_df,temp);
+	zpn_imat((uint8_t*)counter_df,(uint8_t*)temp);
 	ZPN_DIFFUSE256(temp[0], temp[1], temp[2], temp[3],
 	0xa5a5a5a578787878,0x2d2d2d2d1e1e1e1e,0x969696964b4b4b4b,0x3c3c3c3cf0f0f0f0);
-	zpn_imat(temp,counter_df);
-	
+	zpn_imat((uint8_t*)temp,(uint8_t*)counter_df);
+#ifdef DEBUG
+	printf("decrypt: counter after mix\n");
+	for (j=0;j<32;++j)
+		printf("%02x ",((uint8_t*)counter_df)[j]);
+	printf("\n");
+#endif
 
 #define raw64 ((uint64_t*)raw)
 #define raw32 ((uint32_t*)raw)
 #define raw16 ((uint16_t*)raw)
 #define raw8 ((uint8_t*)raw)
-	*(v4qw*)temp = (*(v4qw*)enc) - (*(v4qw*)key->final_add);
 
-	int32_t i, j, b, step;
-	zpn_mat(temp, raw64);
+	int32_t i, b;
 #define t64 temp
+	memcpy(raw,enc,4*8); //256bit
 	for (i = key->cycles - 1 ; i >= 0 ; --i)
 	{
-		for (step=2;step>=0;step-=2)
-		{
-		shifts[0]=counter_df[0] ^ key->cshifts_mixbits[i][step+0]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
-		shifts[1]=counter_df[1] ^ key->cshifts_mixbits[i][step+1]; // for 16*16 (16*4=64)
-		mixbits[0]=counter_df[2] ^ key->cshifts_mixbits[i][(step+2)&3];
-		mixbits[1]=counter_df[3] ^ key->cshifts_mixbits[i][(step+3)&3];
-		shifts32 = shifts[0] >> 24;
+		shifts[0]=counter_df[0] ^ key->cadd[i][0]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
+		shifts[1]=counter_df[1] ^ key->cadd[i][1]; // for 16*16 (16*4=64)
+		shifts[2]=counter_df[2] ^ key->cadd[i][2]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
+		shifts[3]=counter_df[3] ^ key->cadd[i][3]; // for 16*16 (16*4=64)
+		*(v4qw*)temp = (*(v4qw*)raw64) - *(v4qw*)key->cadd[i];
+		//zpn_mat(raw8,temp8);
+		zpn_mat(temp8,raw8);
+		rev_free_rotate32(raw,shifts[0]>>24);
+		rev_free_rotate16(raw,shifts[3]);
+		REV_SPECK_R(raw64[0],raw64[3],key->cadd[i][2]);
+		REV_SPECK_R(raw64[2],raw64[1],key->cadd[i][3]);
+		rev_free_rotate64(raw,shifts[0]);
+		rev_free_rotate32(raw,shifts[2]>>24);
+		REV_SPECK_R(raw64[2],raw64[3],key->cadd[i][1]);
+		REV_SPECK_R(raw64[0],raw64[1],key->cadd[i][0]);
+		rev_free_rotate64(raw,shifts[2]);
+		rev_free_rotate16(raw,shifts[1]);
 		
-		*(v4qw*)raw64=(*(v4qw*)raw64)-*(v4qw*)key->cadd[i];
-		zpn_mat(raw64,temp);
-		zpn_mixbits(temp,raw64,mixbits[0],mixbits[1]);
-		for (b =0 ; b < 8 ; b+=4)
-		{
-			raw32[b+0]=ROTL32(raw32[b+0],(-shifts32)&0x1f);shifts32>>=5;
-			raw32[b+1]=ROTL32(raw32[b+1],(-shifts32)&0x1f);shifts32>>=5;
-			raw32[b+2]=ROTL32(raw32[b+2],(-shifts32)&0x1f);shifts32>>=5;
-			raw32[b+3]=ROTL32(raw32[b+3],(-shifts32)&0x1f);shifts32>>=5;
-		}
-#ifdef DEBUG
-	printf ("decrypt: before shuffle\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",raw8[j]);
-	printf("\n");
-#endif
-#if __has_builtin(__builtin_shufflevector)
-		*((v32b*)temp)=__builtin_shufflevector(*(v32b*)(raw),*(v32b*)(raw), INV_BYTE_SHUFFLE);
-#else
-		*((v32b*)temp)=__builtin_shuffle (*(v32b*)(raw), (v32b){INV_BYTE_SHUFFLE});
-#endif
-#ifdef DEBUG
-	printf ("decrypt: after shuffle\n");
-	for (j=0;j<32;++j)
-		printf("%02x ",((uint8_t*)temp)[j]);
-	printf("\n");
-#endif
-		temp[0]-=0xa5a5a5a578787878;
-		temp[1]-=0x2d2d2d2d1e1e1e1e;
-		temp[2]-=0x969696964b4b4b4b;
-		temp[3]-=0x3c3c3c3cf0f0f0f0;
-		#ifdef DEBUG
-		printf ("decrypt: after temp addition\n");
-		for (j=0;j<32;++j)
-			printf("%02x ",((uint8_t*)temp)[j]);
-		printf("\n");
-		#endif
-		zpn_mat(temp,raw64);
-		#ifdef DEBUG
-		printf ("decrypt: after mat mul\n");
-		for (j=0;j<32;++j)
-			printf("%02x ",((uint8_t*)raw8)[j]);
-		printf("\n");
-		#endif
-		for (b =0 ; b < 16 ; b+=4)
-		{
-			raw16[b+0]=ROTL16(raw16[b+0],(-shifts[1])&0xf);shifts[1]>>=4;
-			raw16[b+1]=ROTL16(raw16[b+1],(-shifts[1])&0xf);shifts[1]>>=4;
-			raw16[b+2]=ROTL16(raw16[b+2],(-shifts[1])&0xf);shifts[1]>>=4;
-			raw16[b+3]=ROTL16(raw16[b+3],(-shifts[1])&0xf);shifts[1]>>=4;
-		}
-		zpn_mat(raw64,temp64); // temp = imat*enc;
-#define CUR_W temp64
-		CUR_W[0]=ROTL64(CUR_W[0],(-shifts[0])&0x3f);shifts[0]>>=6;
-		CUR_W[1]=ROTL64(CUR_W[1],(-shifts[0])&0x3f);shifts[0]>>=6;
-		CUR_W[2]=ROTL64(CUR_W[2],(-shifts[0])&0x3f);shifts[0]>>=6;
-		CUR_W[3]=ROTL64(CUR_W[3],(-shifts[0])&0x3f);shifts[0]>>=6;
-		zpn_mat(temp,raw64); // temp = imat*enc;
-		}
+
 	}
 	
 	*((v4qw*)raw64)=(*((v4qw*)raw64))-(*((v4qw*)counter_df));
@@ -505,5 +488,4 @@ printf("\n");
 #undef raw32
 #undef raw16
 }
-
 
