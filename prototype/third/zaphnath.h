@@ -1,9 +1,12 @@
 #include <stdint.h>
-#define MAX_CYCLES 32
+#define MAX_CYCLES 20
 
 struct zpn_key
 {
 	uint64_t counter_mask[4];
+	uint64_t final_add[4];
+//	uint64_t all_shifts_xor[4]; // this is the xor of all cycles of cshifts and cmixbits
+	uint64_t cshifts_mixbits[MAX_CYCLES][4];
 	uint64_t cadd[MAX_CYCLES][4];
 	uint32_t cycles;
 };
