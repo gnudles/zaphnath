@@ -109,8 +109,6 @@ static inline void zpn_mixbits(uint64_t* in,uint64_t *out, uint64_t b1, uint64_t
 	out[3]=(m[0]&in[3])|(m[1]&in[2])|(m[2]&in[1])|(m[3]&in[0]);
 }// this function is the inverse of itself
 
-#define BYTE_SHUFFLE 21, 29, 10, 4, 20, 30, 2, 12, 14, 1, 27, 8, 16, 31, 7, 18, 24, 5, 25, 0, 23, 17, 9, 11, 22, 26, 19, 3, 6, 28, 15, 13
-#define INV_BYTE_SHUFFLE 19, 9, 6, 27, 3, 17, 28, 14, 11, 22, 2, 23, 7, 31, 8, 30, 12, 21, 15, 26, 4, 0, 24, 20, 16, 18, 25, 10, 29, 1, 5, 13
 static inline uint32_t max_ui32(uint32_t a, uint32_t b)
 { if (a>b) return a; return b; }
 
@@ -204,7 +202,7 @@ static inline void zpn_mat(uint8_t *in, uint8_t *out)
 -1 -1  2  1
  2 -2 -1  2
  1  2  1 -1
- 0  1 -1 -1
+ 3 -3  2  4
 */
 	uint64_t temp_in[4];
 	uint64_t temp_out[4];
@@ -212,7 +210,8 @@ static inline void zpn_mat(uint8_t *in, uint8_t *out)
 	temp_out[0]=-temp_in[0]-temp_in[1]+(temp_in[2]<<1)+temp_in[3];
 	temp_out[1]=((temp_in[0]-temp_in[1]+temp_in[3])<<1)-temp_in[2];
 	temp_out[2]=temp_in[0]+(temp_in[1]<<1)+temp_in[2]-temp_in[3];
-	temp_out[3]=temp_in[1]-temp_in[2]-temp_in[3];
+
+	temp_out[3]=(temp_in[0]-temp_in[1])+((temp_in[0]-temp_in[1]+temp_in[2])<<1)+(temp_in[3]<<2);
 	memcpy(out, temp_out, 4*8);
 }
 static inline void zpn_imat(uint8_t *in, uint8_t *out)
@@ -221,30 +220,22 @@ static inline void zpn_imat(uint8_t *in, uint8_t *out)
 	uint64_t temp_out[4];
 	memcpy(temp_in, in, 4*8);
 /*
--3 -1  0 -5
- 7  3  1 12
--2 -1  0 -4
- 9  4  1 15
+  7   9   5  -5
+-17 -21 -11  12
+  6   7   4  -4
+-21 -26 -14  15
 */
-        temp_out[0]=-temp_in[0]-(temp_in[0]<<1)-temp_in[1]-temp_in[3]-(temp_in[3]<<2);
-        temp_out[1]=-temp_in[0]+((temp_in[0]+temp_in[3])<<3)-temp_in[1]+((temp_in[1]+temp_in[3])<<2)+temp_in[2];
-        temp_out[2]=-(temp_in[0]<<1)-temp_in[1]-(temp_in[3]<<2);
-        temp_out[3]=temp_in[0]+(temp_in[0]<<3)+(temp_in[1]<<2)+temp_in[2]+(temp_in[3]<<4)-temp_in[3];
+        temp_out[0]=((temp_in[0]+temp_in[1])<<3)-temp_in[0]+temp_in[1]+((temp_in[2]-temp_in[3])<<2)+temp_in[2]-temp_in[3];
+        temp_out[1]=((-temp_in[0]-temp_in[1])<<4)-temp_in[0]-temp_in[1]+((temp_in[3]-temp_in[1]-temp_in[2])<<2)+((temp_in[3]-temp_in[2])<<3)+temp_in[2];
+        //[0]: -16 -1 = -17
+        //[1]: -16 -1 -4 = -21
+        //[2]: -4 -8 + 1 = -11
+        //[3]: 8 + 4 =12
+        temp_out[2]=((temp_in[0]+temp_in[2]-temp_in[3])<<2) + (temp_in[1]<<3)-temp_in[1] +(temp_in[0]<<1);
+        temp_out[3]=((-temp_in[0]-temp_in[1]-temp_in[2]+temp_in[3])<<4)-temp_in[3]+((temp_in[2]-temp_in[1])<<1) - (temp_in[1]<<3) -temp_in[0] -(temp_in[0]<<2);
 	memcpy(out, temp_out, 4*8);
 }
-/*
-other matrices to try:
--1 -1  2  1
- 2 -2 -1  2
- 1  2  1 -1
--9  1 -1 -4
-inv:
- -3 -16 -15  -5
-  7  39  37  12
- -2 -13 -12  -4
-  9  49  46  15
-  
-*/
+
 
 static inline void free_rotate64(uint8_t *raw, uint64_t shifts)//only 24 bits from shifts are used.
 {
@@ -382,7 +373,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 	printf("\n");
 #endif
 
-	for (i =0 ; i< key->cycles ; ++i)
+	for (i =0 ; (uint32_t)i< key->cycles ; ++i)
 	{
 		shifts[0]=counter_df[0] ^ key->cadd[i][0]; // for 4*64bit (4*6=24) and for 8*32bit (8*5=40) (24+40=64)
 		shifts[1]=counter_df[1] ^ key->cadd[i][1]; // for 16*16 (16*4=64)
@@ -404,6 +395,7 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 		*(v4qw*)enc64=(*(v4qw*)temp)+*(v4qw*)key->cadd[i];
 		
 	}
+
 
 #undef enc64
 #undef enc32
@@ -451,7 +443,7 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t
 #define raw16 ((uint16_t*)raw)
 #define raw8 ((uint8_t*)raw)
 
-	int32_t i, b;
+	int32_t i;
 #define t64 temp
 	memcpy(raw,enc,4*8); //256bit
 	for (i = key->cycles - 1 ; i >= 0 ; --i)
