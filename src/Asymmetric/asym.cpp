@@ -301,20 +301,25 @@ public:
 private:
     std::array<std::array<T, S >,S> _table;
 };
-template <class T>
-T createPK(const T& b, uint32_t key)
+template <class T,int K>
+T createPK(const T& b, uint64_t key[K])
 {
     T m=b;
     T r;
     r.toIdentity();
-    for (int i=0;i<32;++i)
+    uint64_t ck;
+    for (int k = 0; k< K; ++k)
     {
-        if (key&1)
+        ck = key[k];
+        for (int i=0;i<64;++i)
         {
-            r=r*m;
+            if (ck&1)
+            {
+                r=r*m;
+            }
+            m=m*m;
+            ck>>=1;
         }
-        m=m*m;
-        key>>=1;
     }
     return r;
 }
@@ -324,11 +329,11 @@ int main()
     std::ios::sync_with_stdio(false);
     Asym_t a;
     a.randomize();
-    uint32_t key1 = 53263675;
-    uint32_t key2 = 32423234;
+    uint64_t key1[4] = {53263675,35216858,4743727,8695};
+    uint64_t key2[4] = {32423234,23415,111111111,42513666};
     Asym_t pk1,pk2;
-    pk1=createPK(a,key1);
-    pk2=createPK(a,key2);
+    pk1=createPK<Asym_t,4>(a,key1);
+    pk2=createPK<Asym_t,4>(a,key2);
     std::cout<<"base:";
     a.print();
     std::cout<<"pk1:";
@@ -336,8 +341,8 @@ int main()
     std::cout<<"pk2:";
     pk2.print();
     Asym_t sec1,sec2;
-    sec1=createPK(pk2,key1);
-    sec2=createPK(pk1,key2);
+    sec1=createPK<Asym_t,4>(pk2,key1);
+    sec2=createPK<Asym_t,4>(pk1,key2);
     std::cout<<"sec1:";
     sec1.print();
     std::cout<<"sec2:";
