@@ -1,6 +1,7 @@
 #include <array>
 #include <iostream>
 #include <iomanip>
+#include <cfloat>
 #include <stdint.h>
 #include <endian.h>
 #ifdef _MSC_VER
@@ -33,6 +34,7 @@ public:
 	virtual void read(const BYTE *buf) = 0;
 	virtual void write(BYTE *buf) const = 0;
 	virtual void print() const = 0;
+
 };
 
 template <typename T, typename TL, DWORD P>
@@ -43,6 +45,11 @@ public:
 	inline static size_t size()
 	{
 		return sizeof(T);
+	}
+	inline static long double diff(const ZAIntegerModP<T, TL, P> &l, const ZAIntegerModP<T, TL, P> &r)
+	{
+		T x = (P+l._val-r._val)%P;
+		return (long double)std::min<T>(x,P-x);
 	}
 
 private:
@@ -63,6 +70,11 @@ public:
 	{
 		_val = my_rand() % P;
 	}
+	// void selectiveRandomize(double delta)
+	// {
+	// 	_val= (_val + my_rand()%(int)delta+2*P-(int)delta/2) % P;
+	// }
+
 	virtual void read(const BYTE *buf)
 	{
 		if (sizeof(T) == 1)
@@ -122,6 +134,10 @@ public:
 	inline static size_t size()
 	{
 		return sizeof(T);
+	}
+	inline static long double diff(const ZAInteger<T> &l, const ZAInteger<T> &r)
+	{
+		return (long double)std::min(std::abs(l._val-r._val),1+~std::abs(l._val-r._val));
 	}
 
 private:
@@ -203,6 +219,10 @@ public:
 	{
 		return 2 * T::size();
 	}
+	inline static long double diff(const ZAComplex<T> &l, const ZAComplex<T> &r)
+	{
+		return T::diff(l._img,r._img)+T::diff(l._real,r._real);
+	}
 
 private:
 	T _real, _img;
@@ -223,6 +243,11 @@ public:
 		_real.randomize();
 		_img.randomize();
 	}
+	// void selectiveRandomize(double delta)
+	// {
+	// 	_real.selectiveRandomize(delta/2);
+	// 	_img.selectiveRandomize(delta/2);
+	// }
 	virtual void read(const BYTE *buf)
 	{
 		_real.read(buf);
@@ -255,6 +280,13 @@ public:
 		ZAComplex<T> m;
 		m._real = l._real + r._real;
 		m._img = l._img + r._img;
+		return m;
+	}
+	friend inline const ZAComplex<T> operator-(const ZAComplex<T> &l, const ZAComplex<T> &r)
+	{
+		ZAComplex<T> m;
+		m._real = l._real - r._real;
+		m._img = l._img - r._img;
 		return m;
 	}
 	ZAComplex<T> &operator+=(const ZAComplex<T> &r)
@@ -307,6 +339,15 @@ public:
 	{
 		return nElements * T::size();
 	}
+	inline static long double diff(const ZAMultiDimTable<T, Dims...> &l, const ZAMultiDimTable<T, Dims...> &r)
+	{
+		long double d=0;
+		for (size_t i = 0; i < nElements; ++i)
+		{
+			d+=T::diff(l._table[i],r._table[i]);
+		}
+		return d;
+	}
 
 private:
 	std::array<T, nElements> _table;
@@ -334,6 +375,13 @@ public:
 			_table[i].randomize();
 		}
 	}
+	// virtual void selectiveRandomize(double delta)
+	// {
+	// 	for (size_t i = 0; i < nElements; ++i)
+	// 	{
+	// 		_table[i].selectiveRandomize(delta/nElements);
+	// 	}
+	// }
 	virtual void read(const BYTE *buf)
 	{
 		for (size_t i = 0; i < nElements; ++i)
@@ -385,6 +433,15 @@ public:
 		}
 		return m;
 	}
+	friend inline const ZAMultiDimTable<T, Dims...> operator-(const ZAMultiDimTable<T, Dims...> &l, const ZAMultiDimTable<T, Dims...> &r)
+	{
+		ZAMultiDimTable<T, Dims...> m;
+		for (size_t i = 0; i < nElements; ++i)
+		{
+			m._table[i] = l._table[i] - r._table[i];
+		}
+		return m;
+	}
 	ZAMultiDimTable<T, Dims...> &operator+=(const ZAMultiDimTable<T, Dims...> &r)
 	{
 		for (size_t i = 0; i < nElements; ++i)
@@ -402,6 +459,19 @@ public:
 	inline static size_t size()
 	{
 		return S * S * T::size();
+	}
+	inline static long double diff(const ZASqMatrix<T, S> &l, const ZASqMatrix<T, S> &r)
+	{
+		long double d=0;
+		for (size_t i = 0; i < S; ++i)
+		{
+			for (size_t j = 0; j < S; ++j)
+			{
+
+				d+=T::diff(l._table[i][j],r._table[i][j]);
+			}
+		}
+		return d;
 	}
 
 private:
@@ -441,6 +511,16 @@ public:
 			}
 		}
 	}
+	// void selectiveRandomize(double delta)
+	// {
+	// 	for (size_t i = 0; i < S; ++i)
+	// 	{
+	// 		for (size_t j = 0; j < S; ++j)
+	// 		{
+	// 			_table[i][j].selectiveRandomize(delta/S);
+	// 		}
+	// 	}
+	// }
 	virtual void read(const BYTE *buf)
 	{
 		for (size_t i = 0; i < S; ++i)
@@ -481,6 +561,42 @@ public:
 		std::cout << "]" << std::endl;
 	}
 
+	// virtual void findInverse() const
+	// {
+	// 	const int p=20;
+	// 	const int pp=4;
+	// 	ZASqMatrix<T, S> m[pp];
+	// 	ZASqMatrix<T, S> t[pp];
+	// 	ZASqMatrix<T, S> x[p];
+	// 	for (size_t j=0; j<p; ++j)
+	// 	{
+	// 			x.randomize();
+	// 	}
+	// 	ZASqMatrix<T, S> iden;
+	// 	iden.toIdentity();
+	// 	long double dt=LDBL_MAX,dc=LDBL_MAX;
+	// 	for (size_t i=0; i<5000000; ++i)
+	// 	{
+	// 		for (size_t j=0; j<pp; ++j)
+	// 		{
+	// 			m[j] = x;
+	// 			m[j].selectiveRandomize(dt);
+	// 		}
+	// 		for (size_t j=0; j<p; ++j)
+	// 		{
+	// 			t[j] = m[j] *(*this);
+	// 			dc=diff(t[j],iden);
+	// 			if (dc<dt)
+	// 			{
+	// 				dt=dc;
+	// 				x= m[j];
+	// 				std::cout<<"findInverse: i:"<<i<<" diff: "<<dt<<std::endl;
+	// 			}
+	// 		}
+	// 		x+=m[0];
+	// 	}
+	// }
+
 	friend inline const ZASqMatrix<T, S> operator*(const ZASqMatrix<T, S> &l, const ZASqMatrix<T, S> &r)
 	{
 		ZASqMatrix<T, S> m;
@@ -504,6 +620,18 @@ public:
 			for (size_t j = 0; j < S; ++j)
 			{
 				m._table[i][j] = l._table[i][j] + r._table[i][j];
+			}
+		}
+		return m;
+	}
+	friend inline const ZASqMatrix<T, S> operator-(const ZASqMatrix<T, S> &l, const ZASqMatrix<T, S> &r)
+	{
+		ZASqMatrix<T, S> m;
+		for (size_t i = 0; i < S; ++i)
+		{
+			for (size_t j = 0; j < S; ++j)
+			{
+				m._table[i][j] = l._table[i][j] - r._table[i][j];
 			}
 		}
 		return m;
