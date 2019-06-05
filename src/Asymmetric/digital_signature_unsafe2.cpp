@@ -6,7 +6,7 @@
 */
 int main()
 {
-    typedef ZASqMatrix<ZAMultiDimTable<ZAComplex<ZAIntegerModP<uint16_t, uint32_t, 65521>>, 2, 3, 5>, 3> Asym_t;
+    typedef ZASqMatrix<ZAMultiDimTable<ZAComplex<ZAIntegerModP<uint16_t, uint32_t, 65521>>, 2, 3, 2, 2>, 3> Asym_t;
     std::ios::sync_with_stdio(false);
     Asym_t base; //alice choose un-invertible base to create a public key.
 
