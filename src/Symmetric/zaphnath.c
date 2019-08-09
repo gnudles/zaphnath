@@ -1,91 +1,8 @@
 
 #include <malloc.h>
-#include <string.h>
+
 #include "zaphnath.h"
-
-//clang queries
-#ifndef __has_feature         // Optional of course.
-  #define __has_feature(x) 0  // Compatibility with non-clang compilers.
-#endif
-#ifndef __has_extension
-  #define __has_extension __has_feature // Compatibility with pre-3.0 compilers.
-#endif
-#ifndef __has_builtin    
-#define __has_builtin(x) 0  // Compatibility with non-clang compilers. 
-#endif 
-
-
-typedef uint8_t v32b __attribute__((__vector_size__(32)));
-typedef uint16_t v16w __attribute__((__vector_size__(32)));
-typedef uint32_t v8dw __attribute__((__vector_size__(32)));
-typedef uint64_t v4qw __attribute__((__vector_size__(32)));
-
-#if __has_builtin(__builtin_rotateleft16)
-#define ROTL16(Y,B) (__builtin_rotateleft16(Y,B))
-#else
-#define ROTL16(Y,B) ((Y<<(B))|(Y>>((16-(B))&0xf)))
-#endif
-
-#if __has_builtin(__builtin_rotateleft32)
-#define ROTL32(Y,B) (__builtin_rotateleft32(Y,B))
-#else
-#define ROTL32(Y,B) ((Y<<(B))|(Y>>((32-(B))&0x1f)))
-#endif
-
-#if __has_builtin(__builtin_rotateleft64)
-#define ROTL64(Y,B) (__builtin_rotateleft64(Y,B))
-#else
-#define ROTL64(Y,B) ((Y<<(B))|(Y>>((64-(B))&0x3f)))
-#endif
-
-
-
-
-
-#if __has_builtin(__builtin_rotateright16)
-#define ROTR16(Y,B) (__builtin_rotateright16(Y,B))
-#else
-#define ROTR16(Y,B) ((Y>>(B))|(Y<<((16-(B))&0xf)))
-#endif
-
-#if __has_builtin(__builtin_rotateright32)
-#define ROTR32(Y,B) (__builtin_rotateright32(Y,B))
-#else
-#define ROTR32(Y,B) ((Y>>(B))|(Y<<((32-(B))&0x1f)))
-#endif
-
-#if __has_builtin(__builtin_rotateright64)
-#define ROTR64(Y,B) (__builtin_rotateright64(Y,B))
-#else
-#define ROTR64(Y,B) ((Y>>(B))|(Y<<((64-(B))&0x3f)))
-#endif
-
-
-
-#define ROTL128(Y,B)\
-{\
-uint64_t temp;\
-if(B < 64){temp=Y[0];Y[0]=(Y[0]<<(B))|(Y[1]>>(64-B));Y[1]=(Y[1]<<(B))|(temp>>(64-B));}\
-else{temp=Y[0];Y[0]=(Y[1]<<(B-64))|(Y[0]>>(128-B));Y[1]=(temp<<(B-64))|(Y[1]>>(128-B));}\
-}
-
-#define ZPN_DIFFUSE_ROUND(A, B, C, D, R, T)\
-A+=ROTL64(B,5)-B; C^=D+T; B=ROTL64(B,8); D+=(A);A=ROTL64(A,R);
-
-#define REV_ZPN_DIFFUSE_ROUND(A, B, C, D, R, T)\
-A=ROTL64(A,64-R);D-=(A);B=ROTL64(B,56);C^=D+T;A-=ROTL64(B,5)-B;
-
-#define ZPN_DIFFUSE256(A,B,C,D,I,J,K,L) \
-ZPN_DIFFUSE_ROUND(A,B,C,D,18,I)\
-ZPN_DIFFUSE_ROUND(B,C,D,A,1,J)\
-ZPN_DIFFUSE_ROUND(C,D,A,B,35,K)\
-ZPN_DIFFUSE_ROUND(D,A,B,C,52,L)
-
-#define REV_ZPN_DIFFUSE256(A,B,C,D,I,J,K,L) \
-REV_ZPN_DIFFUSE_ROUND(D,A,B,C,52,L);\
-REV_ZPN_DIFFUSE_ROUND(C,D,A,B,35,K);\
-REV_ZPN_DIFFUSE_ROUND(B,C,D,A,1,J);\
-REV_ZPN_DIFFUSE_ROUND(A,B,C,D,18,I);
+#include "zpn_common.h"
 
 //this is for meanwhile, until I add a better sponge function.
 #define bjenkins_mix3(a,b,c) \
@@ -111,6 +28,8 @@ static inline void zpn_mixbits(uint64_t* in,uint64_t *out, uint64_t b1, uint64_t
 
 static inline uint32_t max_ui32(uint32_t a, uint32_t b)
 { if (a>b) return a; return b; }
+
+
 
 //this is for meanwhile, until I add a better sponge function.
 void zpn_feed_sponge(uint8_t* sponge, uint32_t length, uint64_t feed)
