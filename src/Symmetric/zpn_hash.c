@@ -33,10 +33,11 @@ void pad_last_chunk(hash_chunk chunk,unsigned int length_of_last_chunk)
 {
     assert(length_of_last_chunk < 64);
     chunk[length_of_last_chunk/8] |= ALL_ONES64 << (length_of_last_chunk % 8);
-    for (int i=length_of_last_chunk/8 +1 ; i <8; i++)
+    for (int i = length_of_last_chunk/8 +1 ; i <8; i++)
     {
         chunk[i] = ALL_ONES64;
     }
+    chunk[7] ^= length_of_last_chunk << 56;
 }
 void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
 {
