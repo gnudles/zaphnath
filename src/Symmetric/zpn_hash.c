@@ -58,23 +58,18 @@ void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
 
 void zpn_hash_sponge_obscure(hash_sponge sponge)
 {
-	for (int i=0;i<31;++i)
-	{
-		sponge[i]+=(sponge[i+1]>>6);
-		ROTL64(sponge[i],(sponge[i+1]&63));
-	}
-	zpn_hash_small_step(&sponge[7],&sponge[15],&sponge[23],&sponge[31]);
-	for (int i=0;i<31;++i)
-	{
-		sponge[i]+=(sponge[i+1]>>6);
-		ROTL64(sponge[i],(sponge[i+1]&63));
-	}
-    int step888=0x57;
+    for (int i=0;i<31;++i)
+    {
+	sponge[i]+=(sponge[i+1]>>6);
+	ROTL64(sponge[i],(sponge[i+1]&63));
+    }
+
+    int step888 = sponge[0] & 0x1ff;
     hash_chunk chunk_ones = {ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64,
     ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64};
     for (int i = 0; i < 4; ++i)
     {
         zpn_feed_hash_sponge(sponge,chunk_ones,step888);
-        step888 += 0x4a;
+        step888 += 0x4b;
     }
 }
