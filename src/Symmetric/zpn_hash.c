@@ -62,6 +62,7 @@ void zpn_hash_sponge_obscure(hash_sponge sponge)
     {
 	sponge[i]+=(sponge[i+1]>>6);
 	ROTL64(sponge[i],(sponge[i+1]&63));
+        sponge[i+1] &= sponge[i];
     }
 
     int step888 = sponge[0] & 0x1ff;
