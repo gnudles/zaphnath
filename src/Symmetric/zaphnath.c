@@ -234,10 +234,10 @@ static inline void rev_free_rotate16(uint8_t *raw, uint64_t shifts) //64 bits fr
 	memcpy(raw,temp, 16*2);
 }
 
-#define ROR64(x, r) ((x >> r) | (x << (64 - r)))
-#define ROL64(x, r) ((x << r) | (x >> (64 - r)))
-#define SPECK_R(x, y, k) (x = ROR64(x, 8), x += y, x ^= k, y = ROL64(y, 3), y ^= x)
-#define REV_SPECK_R(x, y, k) (y ^= x, y = ROR64(y, 3), x ^= k, x -= y, x = ROL64(x, 8))
+#define ROR64(x, r) ((x >> (r)) | (x << (64 - (r))))
+#define ROL64(x, r) ((x << (r)) | (x >> (64 - (r))))
+#define SPECK_R(x, y, k) (x = ROR64(x, 8+(y&15)), x += y, x ^= k, y = ROL64(y, 3+(x&31)), y ^= x)
+#define REV_SPECK_R(x, y, k) (y ^= x, y = ROR64(y, 3+(x&31)), x ^= k, x -= y, x = ROL64(x, 8+(y&15)))
 
 #define DEBUG
 void zpn_encrypt(uint64_t nounce, uint64_t counter, struct zpn_key *key, uint8_t *raw, uint8_t *enc)
