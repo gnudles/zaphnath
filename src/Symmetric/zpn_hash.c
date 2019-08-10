@@ -7,7 +7,7 @@
 
 void init_sponge(hash_sponge sponge)
 {
-	memset(sponge,0x5A,sizeof(hash_sponge));
+	memset(sponge,0xcf,sizeof(hash_sponge));
 }
 void bytes_to_chunk(uint8_t *bytes, hash_chunk chunk)
 {
@@ -70,6 +70,7 @@ void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
     #endif
 	for (int i=0;i<8;++i)
 		sponge[i]^=chunk[i];
+	++sponge[31];//zero state protection
 #define zpn_feed_hash_sponge_step(A,B,C,D) zpn_hash_small_step(&sponge[A],&sponge[B],&sponge[C],&sponge[D])
     int off1=((step888>>6)&7),off2=((step888>>3)&7),off3=step888&7;
 	for (int i=0;i<8;++i)
@@ -78,22 +79,40 @@ void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
 #undef zpn_feed_hash_sponge_step
 
 }
+void zpn_hzn_tilt_sponge(hash_sponge sponge)
+{
+#define zpn_feed_hash_sponge_step(A,B,C,D) zpn_hash_small_step(&sponge[A],&sponge[B],&sponge[C],&sponge[D])
+	zpn_feed_hash_sponge_step(0,1,2,3);
+	zpn_feed_hash_sponge_step(4,5,6,7);
+	zpn_feed_hash_sponge_step(8,9,12,13);
+	zpn_feed_hash_sponge_step(10,11,14,15);
+	zpn_feed_hash_sponge_step(16,18,20,22);
+	zpn_feed_hash_sponge_step(17,19,21,23);
+	zpn_feed_hash_sponge_step(24,25,30,31);
+	zpn_feed_hash_sponge_step(26,27,28,29);
+#undef zpn_feed_hash_sponge_step
+}
 
 void zpn_hash_sponge_obscure(hash_sponge sponge)
 {
+
+    int step888 = 0x47;
+    hash_chunk chunk_ones = {ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64,
+    ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64};
+    for (int i = 0; i < 4; ++i)
+    {
+	zpn_hzn_tilt_sponge(sponge);
+        zpn_feed_hash_sponge(sponge,chunk_ones,step888);
+        step888 += 0x5d;
+    }
+	uint64_t sponge_0 = sponge[0];
     for (int i=0;i<31;++i)
     {
 	sponge[i]+=(sponge[i+1]>>6);
 	ROTL64(sponge[i],(sponge[i+1]&63));
         sponge[i+1] &= sponge[i];
     }
-
-    int step888 = sponge[0] & 0x1ff;
-    hash_chunk chunk_ones = {ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64,
-    ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64};
-    for (int i = 0; i < 8; ++i)
-    {
-        zpn_feed_hash_sponge(sponge,chunk_ones,step888);
-        step888 += 0x4b;
-    }
+	sponge[31]+=(sponge_0>>6);
+	ROTL64(sponge[31],(sponge_0&63));
+	sponge[0]+=(sponge_0)& sponge[31];
 }
