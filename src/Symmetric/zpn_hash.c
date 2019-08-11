@@ -24,10 +24,10 @@ void bytes_to_chunk(uint8_t *bytes, hash_chunk chunk)
 static inline void zpn_hash_small_step(uint64_t * a, uint64_t * b, uint64_t * c, uint64_t * d)
 {
 	uint64_t in[4] = {*a,*b,*c,*d};
-	*a = ROTL64(in[0],12)+ROTL64(in[1],15)+ROTL64(in[2],18)+ROTL64(in[3],21);
-	*b = ROTL64(in[0],4)+ROTL64(in[1],9)+ROTL64(in[2],14)+ROTL64(in[3],19);
-	*c = ROTL64(in[0],17)+ROTL64(in[1],25)+ROTL64(in[2],33)+ROTL64(in[3],41);
-	*d = ROTL64(in[0],22)+ROTL64(in[1],32)+ROTL64(in[2],42)+ROTL64(in[3],52);
+	*a = ROTL64(in[0],9)+ROTL64(in[1],1)+ROTL64(in[2],3)+ROTL64(in[3],27);
+	*b = ROTL64(in[0],16)+ROTL64(in[1],4)+ROTL64(in[2],8)+ROTL64(in[3],2);
+	*c = ROTL64(in[0],24)+ROTL64(in[1],35)+ROTL64(in[2],48)+ROTL64(in[3],63);
+	*d = ROTL64(in[0],37)+ROTL64(in[1],42)+ROTL64(in[2],47)+ROTL64(in[3],52);
 }
 void print_chunk(hash_chunk chunk)
 {
@@ -71,6 +71,8 @@ void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
 	for (int i=0;i<8;++i)
 		sponge[i]^=chunk[i];
 	++sponge[31];//zero state protection
+	sponge[31]=~ROTL64(sponge[31],sponge[0]&63);
+	sponge[23]^=(~sponge[23])&sponge[7];
 #define zpn_feed_hash_sponge_step(A,B,C,D) zpn_hash_small_step(&sponge[A],&sponge[B],&sponge[C],&sponge[D])
     int off1=((step888>>6)&7),off2=((step888>>3)&7),off3=step888&7;
 	for (int i=0;i<8;++i)
@@ -81,6 +83,8 @@ void zpn_feed_hash_sponge(hash_sponge sponge, hash_chunk chunk, int step888)
 }
 void zpn_hzn_tilt_sponge(hash_sponge sponge)
 {
+	sponge[24]=ROTL64(sponge[24],sponge[7]&63);
+	sponge[29]=ROTL64(sponge[29],sponge[3]&63);
 #define zpn_feed_hash_sponge_step(A,B,C,D) zpn_hash_small_step(&sponge[A],&sponge[B],&sponge[C],&sponge[D])
 	zpn_feed_hash_sponge_step(0,1,2,3);
 	zpn_feed_hash_sponge_step(4,5,6,7);
@@ -95,16 +99,6 @@ void zpn_hzn_tilt_sponge(hash_sponge sponge)
 
 void zpn_hash_sponge_obscure(hash_sponge sponge)
 {
-
-    int step888 = 0x47;
-    hash_chunk chunk_ones = {ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64,
-    ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64};
-    for (int i = 0; i < 4; ++i)
-    {
-	zpn_hzn_tilt_sponge(sponge);
-        zpn_feed_hash_sponge(sponge,chunk_ones,step888);
-        step888 += 0x5d;
-    }
 	uint64_t sponge_0 = sponge[0];
     for (int i=0;i<31;++i)
     {
@@ -115,4 +109,15 @@ void zpn_hash_sponge_obscure(hash_sponge sponge)
 	sponge[31]+=(sponge_0>>6);
 	ROTL64(sponge[31],(sponge_0&63));
 	sponge[0]+=(sponge_0)& sponge[31];
+
+
+    int step888 = 0x178;
+    hash_chunk chunk_ones = {ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64,
+    ALL_ONES64,ALL_ONES64,ALL_ONES64,ALL_ONES64};
+    for (int i = 0; i < 8; ++i)
+    {
+	zpn_hzn_tilt_sponge(sponge);
+        zpn_feed_hash_sponge(sponge,chunk_ones,step888);
+        step888 += DEFAULT_STEP_INC;
+    }
 }
