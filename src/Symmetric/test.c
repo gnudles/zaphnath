@@ -7,8 +7,12 @@ int main()
 	uint8_t key[40]={36, 85, 82, 38, 19, 222, 249, 198, 154, 134, 254, 209, 131, 16, 83, 93, 90, 179, 89, 168, 42, 215, 13, 134, 139, 203, 216, 106, 78, 156, 75, 190, 105, 12, 194, 157, 235, 129, 102, 62};
 	uint8_t in[32]={'z','a','p','h',
 		'n','a','t','h','Y','o','s','e','f'};
-	uint8_t out[32];
-	zpn_expand_key(key,16,12,&ts);
+		
+	data256 din;
+	data256 dout;
+	
+	zpn_bytes_to_data256(in,din);
+	zpn_expand_key(key,40,18,&ts);
 	int j= 0;
 	int i= 0;
 #if 0
@@ -27,12 +31,12 @@ int main()
 	}
 #endif
 	printf("\n\n\n\n\n");
-	zpn_encrypt(0x4,0x51,&ts,in,out);
+	zpn_encrypt(0x4,0x51,&ts,din,dout);
 	printf("\n\n\n\n\n");
 	//out[0]^=0x1;
 	//zpn_encrypt(0x4,0x51,&ts,in,out);
 	//printf("\n\n\n\n\n");
-	zpn_decrypt(0x4,0x51,&ts,in,out);
+	zpn_decrypt(0x4,0x51,&ts,din,dout);
 	printf("\nbye bye\n");
 	return 0;
 }

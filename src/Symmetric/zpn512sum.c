@@ -41,7 +41,7 @@ int main (int argc, char ** argv)
         }
 
         hash_sponge sponge;
-        init_sponge(sponge);
+        zpn_hash_init_sponge(sponge);
         hash_chunk chunk;
         int c,buf_len;
         int finalise = 0;
@@ -64,37 +64,52 @@ int main (int argc, char ** argv)
                     finalise = 1;// inform that this is the last buffer.
                 }
             }
-            bytes_to_chunk((uint8_t *)buf, chunk);
+            zpn_hash_bytes_to_chunk((uint8_t *)buf, chunk);
             
             if (finalise)
             {
                 if (buf_len == 64)
                 {
-                    zpn_feed_hash_sponge(sponge,chunk,step888);
-                    step888+=DEFAULT_STEP_INC;
+                    zpn_hash_absorb(sponge,chunk);
+                    zpn_hash_vertical_tilt(sponge,step888);
+                    step888+=ZPN_DEFAULT_STEP_INC;
                     buf_len = 0;
                 }
-                pad_last_chunk(chunk,buf_len);
-                zpn_feed_hash_sponge(sponge,chunk,step888);
+                zpn_hash_pad_last_chunk(chunk,buf_len);
+                zpn_hash_absorb(sponge,chunk);
+                zpn_hash_vertical_tilt(sponge,step888);
+                step888+=ZPN_DEFAULT_STEP_INC;
 
-                
-                zpn_hash_sponge_obscure(sponge);
+                zpn_hash_sponge_obscure(sponge,step888);
+		        step888+=ZPN_DEFAULT_STEP_INC*ZPN_OBSCURE_STEPS;
                 hashbuf[0]=sponge[0];
                 hashbuf[1]=sponge[1];
                 hashbuf[2]=sponge[2];
                 hashbuf[3]=sponge[3];
-                
-                zpn_hash_sponge_obscure(sponge);
-                
+                zpn_hash_sponge_obscure(sponge,step888);
+		        step888+=ZPN_DEFAULT_STEP_INC*ZPN_OBSCURE_STEPS;
+                hashbuf[0]^=sponge[0];
+                hashbuf[1]^=sponge[1];
+                hashbuf[2]^=sponge[2];
+                hashbuf[3]^=sponge[3];
+                zpn_hash_sponge_obscure(sponge,step888);
+                step888+=ZPN_DEFAULT_STEP_INC*ZPN_OBSCURE_STEPS;
                 hashbuf[4]=sponge[0];
                 hashbuf[5]=sponge[1];
                 hashbuf[6]=sponge[2];
                 hashbuf[7]=sponge[3];
+                zpn_hash_sponge_obscure(sponge,step888);
+		        step888+=ZPN_DEFAULT_STEP_INC*ZPN_OBSCURE_STEPS;
+                hashbuf[4]^=sponge[0];
+                hashbuf[5]^=sponge[1];
+                hashbuf[6]^=sponge[2];
+                hashbuf[7]^=sponge[3];
             }
             else
             {
-                zpn_feed_hash_sponge(sponge,chunk,step888);
-                step888+=DEFAULT_STEP_INC;
+                zpn_hash_absorb(sponge,chunk);
+                zpn_hash_vertical_tilt(sponge,step888);
+                step888+=ZPN_DEFAULT_STEP_INC;
             }
         }
         for (int i = 0; i<8; ++i)
