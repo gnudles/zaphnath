@@ -44,13 +44,11 @@ static inline void zpn_hash_small_step(uint64_t * a, uint64_t * b, uint64_t * c,
 }
 static inline void zpn_hash_nonlinear_step(hash_sponge sponge)
 {
-    uint64 sponge_31=sponge[31];
+    uint64_t sponge_31=sponge[31];
     ++sponge[31];//zero state protection
-    sponge[31] ^= ~ROTL64(sponge[30],sponge[0]&63);
-    sponge[30] += ROTL64(sponge[30],40)-sponge_31;
+    sponge[31] ^= ~ROTL64(sponge[29],sponge[31]&63);
+    sponge[29] += ROTL64(sponge[29],40)&sponge_31;
     
-    sponge[24] ^=  ROTL64(sponge[26],sponge[7]&63) & sponge[28];
-	sponge[29] ^=  ROTL64(sponge[27],sponge[3]&63);
 }
 void print_chunk(hash_chunk chunk)
 {
