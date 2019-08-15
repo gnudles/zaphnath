@@ -20,10 +20,8 @@ int main (int argc, char ** argv)
         hash_sponge sponge;
         zpn_hash_init_sponge(sponge);
         hash_chunk chunk;
-        int c,buf_len;
         int finalise = 0;
         int step888 = 0;
-        int total_read = 0;
 	zpn_hash_bytes_to_chunk((uint8_t *)buf, chunk);
 	zpn_hash_absorb(sponge,chunk);
         zpn_hash_vertical_tilt(sponge,step888);
@@ -58,8 +56,9 @@ int main (int argc, char ** argv)
                 hashbuf[5]^=sponge[1];
                 hashbuf[6]^=sponge[2];
                 hashbuf[7]^=sponge[3];
-		write(1,hashbuf,64);
-           
+		int res = write(1,hashbuf,64);
+                if (res != 64)
+                        break;
 
         }
 	

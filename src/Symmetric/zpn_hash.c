@@ -20,9 +20,9 @@ void zpn_hash_bytes_to_chunk(uint8_t *bytes, hash_chunk chunk)
         chunk[i/8] |= ((uint64_t)bytes[i])<<((i%8)*8);
     }
 }
-void zpn_hash_nbytes_to_chunk(uint8_t *bytes, unsigned int length, hash_chunk chunk)
+void zpn_hash_nbytes_to_chunk(uint8_t *bytes, int length, hash_chunk chunk)
 {
-    assert (length<=64);
+    assert (length<=64 && length >=0);
     int i;
     for ( i = 0; i < 8; ++i)
     {

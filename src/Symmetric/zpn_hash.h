@@ -5,7 +5,7 @@ typedef uint64_t hash_chunk[8]; //512bit
 #define ZPN_OBSCURE_STEPS 4
 void zpn_hash_init_sponge(hash_sponge sponge);
 void zpn_hash_bytes_to_chunk(uint8_t *bytes, hash_chunk chunk);
-void zpn_hash_nbytes_to_chunk(uint8_t *bytes, unsigned int length, hash_chunk chunk);
+void zpn_hash_nbytes_to_chunk(uint8_t *bytes, int length, hash_chunk chunk);
 void zpn_hash_vertical_tilt(hash_sponge sponge, int step888);
 void zpn_hash_sponge_obscure(hash_sponge sponge, int step888);
 void zpn_hash_pad_last_chunk(hash_chunk chunk,unsigned int length_of_last_chunk);

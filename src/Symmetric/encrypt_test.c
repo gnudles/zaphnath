@@ -13,9 +13,9 @@ int main()
 	
 	zpn_bytes_to_data256(in,din);
 	zpn_expand_key(key,40,18,&ts);
+#if 0
 	int j= 0;
 	int i= 0;
-#if 0
 	for (j=0;j<10000000;++j)
 	{
 	((uint64_t*)in)[0]*=2;

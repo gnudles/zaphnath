@@ -10,8 +10,8 @@
 
 
 
-static inline uint32_t max_ui32(uint32_t a, uint32_t b)
-{ if (a>b) return a; return b; }
+//static inline uint32_t max_ui32(uint32_t a, uint32_t b)
+//{ if (a>b) return a; return b; }
 
 void zpn_bytes_to_data256(uint8_t *bytes, data256 x)
 {
