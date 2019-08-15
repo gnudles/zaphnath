@@ -4,11 +4,20 @@ CFLAGS+= -O3 -g -fPIC  -Wall -Wextra
 CCMIPS=mips-linux-gnu-gcc
 CC=clang
 all: zpn512sum encrypt_test ZPN_RNG zaphnath.S
+meson:
+	meson build
+ninja:
+	ninja -C build
+meson_mips:
+	meson build_mips --cross-file mips_arch
+ninja_mips:
+	ninja -C build_mips
 mips: zpn512sum_MIPS ZPN_RNG_MIPS encrypt_test_MIPS
 
 encrypt_test.o: encrypt_test.c zaphnath.h
 zaphnath.o: zaphnath.c zaphnath.h zpn_common.h zpn_hash.h
-zpn512sum.o: zpn512sum.c zpn_common.h zpn_hash.h
+zpn512sum.o: zpn512sum.c zpn_common.h zpn_hash.h i_stream.h
+i_stream.o: i_stream.c i_stream.h
 zpn_hash_rng.o: zpn_hash_rng.c zpn_common.h zpn_hash.h
 zpn_hash.o: zpn_hash.c zpn_common.h zpn_hash.h
 zaphnath.S: zaphnath.c zaphnath.h
@@ -16,11 +25,11 @@ zaphnath.S: zaphnath.c zaphnath.h
 encrypt_test: encrypt_test.o zaphnath.o zpn_hash.o
 	$(CC) encrypt_test.o zaphnath.o zpn_hash.o -o encrypt_test 
 	#$(CC) encrypt_test.o zaphnath.o -lasan -lubsan -o encrypt_test 
-zpn512sum: zpn512sum.o zpn_hash.o
-	$(CC) zpn512sum.o zpn_hash.o -o zpn512sum
+zpn512sum: zpn512sum.o zpn_hash.o i_stream.o
+	$(CC) zpn512sum.o zpn_hash.o i_stream.o -o zpn512sum
 ZPN_RNG: zpn_hash_rng.o zpn_hash.o
 	$(CC) zpn_hash_rng.o zpn_hash.o -o ZPN_RNG
-#these are used for big endian testings...
+#these are used for big endian testings... now obsolete when moving to meson
 zpn512sum.mips.o: zpn512sum.c zpn_common.h zpn_hash.h
 	$(CCMIPS) -c $(CFLAGS) zpn512sum.c -o zpn512sum.mips.o
 zpn_hash_rng.mips.o: zpn_hash_rng.c zpn_common.h zpn_hash.h

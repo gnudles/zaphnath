@@ -103,7 +103,7 @@ REV_ZPN_DIFFUSE_ROUND(C,D,A,B,35,K);\
 REV_ZPN_DIFFUSE_ROUND(B,C,D,A,1,J);\
 REV_ZPN_DIFFUSE_ROUND(A,B,C,D,18,I);
 
-inline void int64toHex(uint64_t x, char* s)
+static inline void int64toHex(uint64_t x, char* s)
 {
     char map[16]={'0','1','2','3',
     '4','5','6','7',

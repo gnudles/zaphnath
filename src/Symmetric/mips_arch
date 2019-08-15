@@ -1,0 +1,17 @@
+[binaries]
+c = '/usr/bin/mips-linux-gnu-gcc'
+cpp = '/usr/bin/mips-linux-gnu-g++'
+ar = '/usr/bin/mips-linux-gnu-gcc-ar'
+strip = '/usr/bin/mips-linux-gnu-strip'
+pkgconfig = '/usr/bin/mips-linux-gnu-pkg-config'
+
+[host_machine]
+system = 'linux'
+cpu_family = 'mips'
+cpu = 'mips'
+endian = 'big'
+
+[properties]
+sizeof_int = 4
+sizeof_void* = 4
+c_link_args = ['-static']
