@@ -3,7 +3,7 @@ CFLAGS+= -O3 -g -fPIC  -Wall -Wextra
 #-fsanitize=undefined
 CCMIPS=mips-linux-gnu-gcc
 CC=clang
-all: zpn512sum zpn512sum_MIPS ZPN_RNG ZPN_RNG_MIPS test zaphnath.S
+all: zpn512sum test ZPN_RNG zpn512sum_MIPS ZPN_RNG_MIPS zaphnath.S
 
 test.o: test.c zaphnath.h
 zaphnath.o: zaphnath.c zaphnath.h zpn_common.h zpn_hash.h
