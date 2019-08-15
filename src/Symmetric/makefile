@@ -14,7 +14,7 @@ zpn_hash.o: zpn_hash.c zpn_common.h zpn_hash.h
 zaphnath.S: zaphnath.c zaphnath.h
 	$(CC) -S -g zaphnath.c  -o zaphnath.S 
 encrypt_test: encrypt_test.o zaphnath.o zpn_hash.o
-	$(CC) test.o zaphnath.o zpn_hash.o -o encrypt_test 
+	$(CC) encrypt_test.o zaphnath.o zpn_hash.o -o encrypt_test 
 	#$(CC) encrypt_test.o zaphnath.o -lasan -lubsan -o encrypt_test 
 zpn512sum: zpn512sum.o zpn_hash.o
 	$(CC) zpn512sum.o zpn_hash.o -o zpn512sum

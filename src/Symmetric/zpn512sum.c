@@ -26,7 +26,7 @@ int main (int argc, char ** argv)
     for (; arg_i < argc; ++arg_i)
     {
         FILE * fptr;
-        if (arg_i == 0)
+        if (arg_i == 0 || strcmp(argv[arg_i],"-") ==0)
         {
             fptr = stdin;
         }
@@ -119,7 +119,7 @@ int main (int argc, char ** argv)
         hexbuf[128] = '\0';
         
         printf("%s  ",hexbuf);
-        if (arg_i == 0)
+        if (fptr == stdin)
             printf("-\n");
         else
         {

@@ -225,8 +225,8 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, const struct zpn_key *key, c
 	printf("\n");
 #endif
 	ZPN_TWISTER(counter_df[0], counter_df[1], counter_df[2], counter_df[3])
-	zpn_mat(counter_df);
 	ZPN_TWISTER_MULTI(counter_df[0], counter_df[1], counter_df[2], counter_df[3])
+	zpn_mat(counter_df);
 
 #ifdef DEBUG
 	printf("counter after mix\n");
@@ -253,8 +253,8 @@ void zpn_encrypt(uint64_t nounce, uint64_t counter, const struct zpn_key *key, c
 	for (i =0 ; (uint32_t)i< key->cycles ; ++i)
 	{
 		ZPN_TWISTER(enc[0],enc[1],enc[2],enc[3])
-		zpn_imat(enc);
 		ZPN_TWISTER_MULTI(enc[0],enc[1],enc[2],enc[3])
+		zpn_imat(enc);
 		*((v4qw*)enc) += (*((v4qw*)key->cadd[i]));
 	}
 
@@ -282,8 +282,8 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, const struct zpn_key *key, d
 	counter_df[2]=nounce + key->counter_mask[2];
 	counter_df[3]=key->counter_mask[3];
 	ZPN_TWISTER(counter_df[0], counter_df[1], counter_df[2], counter_df[3])
-	zpn_mat(counter_df);
 	ZPN_TWISTER_MULTI(counter_df[0], counter_df[1], counter_df[2], counter_df[3])
+	zpn_mat(counter_df);
 	
 #ifdef DEBUG
 	printf("decrypt: counter after mix\n");
@@ -294,8 +294,8 @@ void zpn_decrypt(uint64_t nounce, uint64_t counter, const struct zpn_key *key, d
 	for (i = key->cycles - 1 ; i >= 0 ; --i)
 	{
 		*(v4qw*)raw -= *(v4qw*)key->cadd[i];
-		REV_ZPN_TWISTER_MULTI(raw[0],raw[1],raw[2],raw[3])
 		zpn_mat(raw);
+		REV_ZPN_TWISTER_MULTI(raw[0],raw[1],raw[2],raw[3])
 		REV_ZPN_TWISTER(raw[0],raw[1],raw[2],raw[3])
 	}
 	
