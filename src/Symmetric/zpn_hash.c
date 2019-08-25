@@ -45,10 +45,10 @@ static inline void zpn_hash_small_step(uint64_t * a, uint64_t * b, uint64_t * c,
 }
 static inline void zpn_hash_nonlinear_step(hash_sponge sponge)
 {
-    uint64_t sponge_31=sponge[31];
-    ++sponge[31];//zero state protection
+    uint64_t sponge_31 = sponge[31];
     sponge[31] ^= ROTL64(sponge[29],sponge[31]&63);
     sponge[29] += ~(ROTL64(sponge[29],51)&sponge_31);
+    ++sponge[31];//zero state protection
     
 }
 void print_chunk(hash_chunk chunk)
@@ -65,7 +65,7 @@ void print_sponge(hash_sponge sponge)
 {
     char temp[17];
     temp[16] = 0;
-    for (int i= 0; i<32; ++i)
+    for (int i= 0; i<34; ++i)
     {
         int64toHex(sponge[i],temp);
         printf("%s",temp);
@@ -95,8 +95,11 @@ void zpn_hash_vertical_tilt(hash_sponge sponge, int step888)
     zpn_hash_nonlinear_step(sponge);
 #define zpn_feed_hash_sponge_step(A,B,C,D) zpn_hash_small_step(&sponge[A],&sponge[B],&sponge[C],&sponge[D])
     int off1=((step888>>6)&7),off2=((step888>>3)&7),off3=step888&7;
-	for (int i=0;i<8;++i)
-		zpn_feed_hash_sponge_step(0+i,8+(off1+i)%8,16+(off2+i)%8,24+(off3+i)%8);
+#ifdef __clang__
+#pragma clang loop unroll(full)
+#endif
+    for (int i=0;i<8;++i)
+        zpn_feed_hash_sponge_step(0+i,8+((off1+i)&7),16+((off2+i)&7),24+((off3+i)&7));
     
 #undef zpn_feed_hash_sponge_step
 
@@ -133,9 +136,15 @@ void zpn_hash_sponge_obscure(hash_sponge sponge, int step888)
 	sponge[0]+=(sponge_0)& sponge[31];
 */
 
+    sponge[30] ^= sponge[32];
+    sponge[28] ^= sponge[33];
+
+#ifdef __clang__
+#pragma clang loop unroll(full)
+#endif
     for (int i = 0; i < ZPN_OBSCURE_STEPS ; ++i)
     {
-	    zpn_hash_horizontal_tilt(sponge);
+	zpn_hash_horizontal_tilt(sponge);
         zpn_hash_vertical_tilt(sponge,step888);
         step888 += ZPN_DEFAULT_STEP_INC;
     }
@@ -202,4 +211,5 @@ void zpn_hash_calculate(struct i_stream *stream, hash_chunk hash_out)
                 step888+=ZPN_DEFAULT_STEP_INC;
             }
         }
+        zpn_hash_init_sponge(sponge);
 }

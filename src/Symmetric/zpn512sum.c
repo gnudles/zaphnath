@@ -11,6 +11,7 @@
 #include "zpn_hash.h"
 #include "zpn_common.h"
 #include "i_stream.h"
+#include <sys/stat.h>
 
 #define BUF_SIZE 64
 char buf[BUF_SIZE];
@@ -19,6 +20,7 @@ char hexbuf[129];//512 bit
 int main (int argc, char ** argv)
 {
     struct i_stream file_stream;
+    struct stat file_stat;
     int arg_i = 1;
     if (argc == 1)
     {
@@ -26,14 +28,22 @@ int main (int argc, char ** argv)
     }
     for (; arg_i < argc; ++arg_i)
     {
-        FILE * fptr;
+        FILE * fptr = 0;
         if (arg_i == 0 || strcmp(argv[arg_i],"-") ==0)
         {
             fptr = stdin;
         }
         else
         {
-            fptr = fopen(argv[arg_i],"rb");
+            if (stat (argv[arg_i] , &file_stat ) == 0)
+            {
+                if ( S_ISDIR(file_stat.st_mode) )
+                {
+                    fprintf(stderr,"%s: %s: Is a directory\n",argv[0], argv[arg_i]);
+                    continue;
+                }
+                fptr = fopen(argv[arg_i],"rb");
+            }
             if (fptr == 0)
             {
                 fprintf(stderr,"%s: %s: %s\n",argv[0], argv[arg_i], strerror(errno));

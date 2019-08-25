@@ -3,15 +3,26 @@ CFLAGS+= -O3 -g -fPIC  -Wall -Wextra
 #-fsanitize=undefined
 CCMIPS=mips-linux-gnu-gcc
 CC=clang
-all: zpn512sum encrypt_test ZPN_RNG zaphnath.S
-meson:
-	meson build
+
+meson_gcc:
+	mkdir -p build
+	meson --buildtype debug build/gcc-debug
+	meson --buildtype release build/gcc-release
+meson_clang:
+	mkdir -p build
+	CC=clang CXX=clang++ meson --buildtype debug build/clang-debug
+	CC=clang CXX=clang++ meson --buildtype release build/clang-release
 ninja:
-	ninja -C build
+	ninja -C build/clang-release
+	ninja -C build/clang-debug
+	ninja -C build/gcc-release
+	ninja -C build/gcc-debug
 meson_mips:
-	meson build_mips --cross-file mips_arch
+	mkdir -p build
+	meson build/mips --cross-file mips_arch
 ninja_mips:
-	ninja -C build_mips
+	ninja -C build/mips
+all: zpn512sum encrypt_test ZPN_RNG zaphnath.S
 mips: zpn512sum_MIPS ZPN_RNG_MIPS encrypt_test_MIPS
 
 encrypt_test.o: encrypt_test.c zaphnath.h
